@@ -1,5 +1,6 @@
 # flake8: noqa
 from vnpy.event import EventEngine
+from vnpy.trader.constant import Exchange
 
 from vnpy.trader.engine import MainEngine
 from vnpy.trader.ui import MainWindow, create_qapp
@@ -7,6 +8,7 @@ from vnpy.trader.ui import MainWindow, create_qapp
 from vnpy_ctp import CtpGateway
 from vnpy_mt5 import Mt5Gateway
 from vnpy_rqdata import RqdataGateway
+from vnpy_kabus import KabusGateway
 # from vnpy_ctptest import CtptestGateway
 # from vnpy_mini import MiniGateway
 # from vnpy_femas import FemasGateway
@@ -55,6 +57,7 @@ def main():
     main_engine.add_gateway(CtpGateway)
     main_engine.add_gateway(Mt5Gateway)
     main_engine.add_gateway(RqdataGateway)
+    main_engine.add_gateway(KabusGateway)
 
     # main_engine.add_gateway(CtptestGateway)
     # main_engine.add_gateway(MiniGateway)
