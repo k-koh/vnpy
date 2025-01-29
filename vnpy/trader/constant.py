@@ -136,6 +136,8 @@ class Exchange(Enum):
     # Special Function
     LOCAL = "LOCAL"         # For local generated data
 
+    KBS = "KBS"             # Kabu Station Exchange
+
 
 class Currency(Enum):
     """
