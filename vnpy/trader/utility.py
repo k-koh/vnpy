@@ -505,21 +505,22 @@ class ArrayManager(object):
         self.turnover_array: np.ndarray = np.zeros(size)
         self.open_interest_array: np.ndarray = np.zeros(size)
 
-    def update_bar(self, bar: BarData) -> None:
+    def update_bar(self, bar: BarData, new_bar: bool = True) -> None:
         """
         Update new bar data into array manager.
         """
-        self.count += 1
-        if not self.inited and self.count >= self.size:
-            self.inited = True
+        if new_bar:
+            self.count += 1
+            if not self.inited and self.count >= self.size:
+                self.inited = True
 
-        self.open_array[:-1] = self.open_array[1:]
-        self.high_array[:-1] = self.high_array[1:]
-        self.low_array[:-1] = self.low_array[1:]
-        self.close_array[:-1] = self.close_array[1:]
-        self.volume_array[:-1] = self.volume_array[1:]
-        self.turnover_array[:-1] = self.turnover_array[1:]
-        self.open_interest_array[:-1] = self.open_interest_array[1:]
+            self.open_array[:-1] = self.open_array[1:]
+            self.high_array[:-1] = self.high_array[1:]
+            self.low_array[:-1] = self.low_array[1:]
+            self.close_array[:-1] = self.close_array[1:]
+            self.volume_array[:-1] = self.volume_array[1:]
+            self.turnover_array[:-1] = self.turnover_array[1:]
+            self.open_interest_array[:-1] = self.open_interest_array[1:]
 
         self.open_array[-1] = bar.open_price
         self.high_array[-1] = bar.high_price
