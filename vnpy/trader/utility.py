@@ -266,6 +266,11 @@ class BarGenerator:
 
         self.last_tick = tick
 
+        self.bar.ask_price = tick.ask_price_1
+        self.bar.bid_price = tick.bid_price_1
+        self.bar.new_minute = new_minute
+        return self.bar
+
     def update_bar(self, bar: BarData) -> None:
         """
         Update 1 minute bar into generator
