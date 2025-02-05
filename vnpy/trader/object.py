@@ -101,7 +101,6 @@ class BarData(BaseData):
     low_price: float = 0
     close_price: float = 0
 
-    new_minute: bool = True
     ask_price: float = None
     bid_price: float = None
 

@@ -132,11 +132,11 @@ class Exchange(Enum):
     KRX = "KRX"             # Korean Exchange
     OTC = "OTC"             # OTC Product (Forex/CFD/Pink Sheet Equity)
     IBKRATS = "IBKRATS"     # Paper Trading Exchange of IB
+    JPX = "JPX"             # Japan Exchange Group
 
     # Special Function
     LOCAL = "LOCAL"         # For local generated data
 
-    KBS = "KBS"             # Kabu Station Exchange
 
 
 class Currency(Enum):

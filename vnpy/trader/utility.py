@@ -268,8 +268,7 @@ class BarGenerator:
 
         self.bar.ask_price = tick.ask_price_1
         self.bar.bid_price = tick.bid_price_1
-        self.bar.new_minute = new_minute
-        return self.bar
+        return self.bar, new_minute
 
     def update_bar(self, bar: BarData) -> None:
         """
