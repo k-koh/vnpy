@@ -203,6 +203,7 @@ class BarGenerator:
         self.on_window_bar: Callable = on_window_bar
 
         self.last_tick: TickData = None
+        self.last_bar: BarData = None
 
         self.daily_end: time = daily_end
         if self.interval == Interval.DAILY and not self.daily_end:
@@ -227,7 +228,7 @@ class BarGenerator:
             self.bar.datetime = self.bar.datetime.replace(
                 second=0, microsecond=0
             )
-            self.on_bar(self.bar)
+            self.on_bar(self.bar, False) # send current minute bar
 
             new_minute = True
 
@@ -280,9 +281,20 @@ class BarGenerator:
 
     def update_bar_minute_window(self, bar: BarData) -> None:
         """"""
-        # If not inited, create window bar object
+        new_window: bool = False
+        minute: int = bar.datetime.minute - bar.datetime.minute % self.window
         if not self.window_bar:
-            dt: datetime = bar.datetime.replace(second=0, microsecond=0)
+            new_window = True
+        else:
+            if (
+                (minute != self.window_bar.datetime.minute)
+                or (bar.datetime.hour != self.window_bar.datetime.hour)
+            ): # check if bar is in new window
+                new_window = True
+
+        # If not inited, create window bar object
+        if new_window:
+            dt: datetime = bar.datetime.replace(minute=minute ,second=0, microsecond=0)
             self.window_bar = BarData(
                 symbol=bar.symbol,
                 exchange=bar.exchange,
@@ -290,8 +302,11 @@ class BarGenerator:
                 gateway_name=bar.gateway_name,
                 open_price=bar.open_price,
                 high_price=bar.high_price,
-                low_price=bar.low_price
+                low_price=bar.low_price,
+                volume=bar.volume,
+                turnover=bar.turnover
             )
+            self.last_bar = None
         # Otherwise, update high/low price into window bar
         else:
             self.window_bar.high_price = max(
@@ -305,14 +320,21 @@ class BarGenerator:
 
         # Update close price/volume/turnover into window bar
         self.window_bar.close_price = bar.close_price
-        self.window_bar.volume += bar.volume
-        self.window_bar.turnover += bar.turnover
+        # self.window_bar.volume += bar.volume
+        # self.window_bar.turnover += bar.turnover
         self.window_bar.open_interest = bar.open_interest
 
+        if self.last_bar:
+            volume_change: float = bar.volume - self.last_bar.volume
+            self.window_bar.volume += max(volume_change, 0)
+            turnover_change: float = bar.turnover - self.last_bar.turnover
+            self.window_bar.turnover += max(turnover_change, 0)
+        self.last_bar = bar
+
         # Check if window bar completed
-        if not (bar.datetime.minute + 1) % self.window:
-            self.on_window_bar(self.window_bar)
-            self.window_bar = None
+        # if not (bar.datetime.minute + 1) % self.window:
+        #     self.on_window_bar(self.window_bar)
+        #     self.window_bar = None
 
     def update_bar_hour_window(self, bar: BarData) -> None:
         """"""

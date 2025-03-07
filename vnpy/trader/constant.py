@@ -6,6 +6,49 @@ from enum import Enum
 
 from .locale import _
 
+class BarDowTheory(Enum):
+    """
+    Direction of trend.
+    """
+    UP = _("向上")
+    DOWN = _("向下")
+    SIDE = _("横盘")
+    NONE = _("无")
+
+class CandleType(Enum):
+    """
+    Direction of candle.
+    """
+    BULLISH = _("阳线")
+    BEARISH = _("阴线")
+    DOJI = _("十字")
+    NONE = _("无")
+
+class TrendType(Enum):
+    """
+    Direction of Trend.
+    """
+    UP = _("向上")
+    DOWN = _("向下")
+    SIDE = _("横盘")
+
+class CandleColor(Enum):
+    """
+    Color of candle.
+    """
+    YELLOW = _("黄色")
+    MAGENTA = _("洋红色")
+    ORANGE = _("橙色")
+
+class PriceType(Enum):
+    """
+    Direction of price.
+    """
+    HIGH = _("高")
+    LOW = _("低")
+    OPEN = _("开")
+    CLOSE = _("收")
+    NONE = _("无")
 
 class Direction(Enum):
     """
@@ -154,6 +197,13 @@ class Interval(Enum):
     Interval of bar data.
     """
     MINUTE = "1m"
+    MINUTE3 = "3m"
+    MINUTE5 = "5m"
+    MINUTE6 = "6m"
+    MINUTE10 = "10m"
+    MINUTE12 = "12m"
+    MINUTE15 = "15m"
+    MINUTE20 = "20m"
     HOUR = "1h"
     DAILY = "d"
     WEEKLY = "w"
