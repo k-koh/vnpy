@@ -1,4 +1,3 @@
-# flake8: noqa
 from vnpy.event import EventEngine
 from vnpy.trader.constant import Exchange
 
@@ -63,7 +62,7 @@ def main():
     # main_engine.add_gateway(MiniGateway)
     # main_engine.add_gateway(FemasGateway)
     # main_engine.add_gateway(SoptGateway)
-    # main_engine.add_gateway(SecGateway)    
+    # main_engine.add_gateway(SecGateway)
     # main_engine.add_gateway(UftGateway)
     # main_engine.add_gateway(EsunnyGateway)
     # main_engine.add_gateway(XtpGateway)
@@ -96,7 +95,7 @@ def main():
     # main_engine.add_app(RiskManagerApp)
     # main_engine.add_app(WebTraderApp)
     # main_engine.add_app(PortfolioManagerApp)
-    
+
     main_window = MainWindow(main_engine, event_engine)
     main_window.showMaximized()
 
