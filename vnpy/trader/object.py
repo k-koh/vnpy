@@ -102,10 +102,16 @@ class BarData(BaseData):
     high_price: float = 0
     low_price: float = 0
     close_price: float = 0
-    eris_p_iv: float = 0
-    eris_c_iv: float = 0
+    # Added fields for option IV storage
     eris_p_strike: int = 0
+    eris_p_iv: float = 0
     eris_c_strike: int = 0
+    eris_c_iv: float = 0
+    n225_vi: float = 0
+    underlying_price: int = 0
+    implied_volatility: float = 0
+    futures_option_type: int = 0  # 1: future 2: option
+    put_call_type: int = 0        # 1: put 2: call
 
     def __post_init__(self) -> None:
         """"""
