@@ -181,6 +181,7 @@ class BarGenerator:
         daily_end: time | None = None
     ) -> None:
         """Constructor"""
+        self.main_engine = None
         self.bar: BarData | None = None
         self.on_bar: Callable = on_bar
 
@@ -258,6 +259,41 @@ class BarGenerator:
             self.bar.turnover += max(turnover_change, 0)
 
         self.last_tick = tick
+
+        # update bar option eris iv
+        impv_value_p = None
+        strike_value_p = None
+        impv_value_c = None
+        strike_value_c = None
+
+        gateway = self.main_engine.get_gateway("KBS")
+        if gateway:
+            option_engine = self.main_engine.get_engine("OptionMaster")
+            # Put option
+            eris_put_match = gateway.rest_api.eris_put_match
+            if option_engine:
+                kabus_symbol = eris_put_match.get('symbol')
+                if kabus_symbol:
+                    option_data = option_engine.get_option_data_by_kabus_symbol(kabus_symbol)
+                    if option_data and option_data.mid_impv:
+                        impv_value_p = option_data.mid_impv
+            strike_value_p = eris_put_match.get('strike', None)
+
+            # Call option
+            eris_call_match = gateway.rest_api.eris_call_match
+            if option_engine:
+                kabus_symbol = eris_call_match.get('symbol')
+                if kabus_symbol:
+                    option_data = option_engine.get_option_data_by_kabus_symbol(kabus_symbol)
+                    if option_data and option_data.mid_impv:
+                        impv_value_c = option_data.mid_impv
+            strike_value_c = eris_call_match.get('strike', None)
+
+        self.bar.eris_p_iv = impv_value_p
+        self.bar.eris_p_strike = strike_value_p
+        self.bar.eris_c_iv = impv_value_c
+        self.bar.eris_c_strike = strike_value_c
+
         return self.bar, new_minute
 
     def update_bar(self, bar: BarData) -> None:
@@ -296,7 +332,11 @@ class BarGenerator:
                 high_price=bar.high_price,
                 low_price=bar.low_price,
                 volume=bar.volume,
-                turnover=bar.turnover
+                turnover=bar.turnover,
+                eris_p_strike=bar.eris_p_strike,
+                eris_p_iv=bar.eris_p_iv,
+                eris_c_strike=bar.eris_c_strike,
+                eris_c_iv=bar.eris_c_iv
             )
             self.last_bar = None
         # Otherwise, update high/low price into window bar
@@ -315,6 +355,10 @@ class BarGenerator:
         # self.window_bar.volume += bar.volume
         # self.window_bar.turnover += bar.turnover
         self.window_bar.open_interest = bar.open_interest
+        self.window_bar.eris_p_strike = bar.eris_p_strike
+        self.window_bar.eris_p_iv = bar.eris_p_iv
+        self.window_bar.eris_c_strike = bar.eris_c_strike
+        self.window_bar.eris_c_iv = bar.eris_c_iv
 
         if self.last_bar:
             volume_change: float = bar.volume - self.last_bar.volume

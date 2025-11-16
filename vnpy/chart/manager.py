@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from _collections_abc import dict_keys
 
 from vnpy.trader.object import BarData
@@ -168,3 +168,22 @@ class BarManager:
         self._index_datetime_map.clear()
 
         self._clear_cache()
+
+    def get_current_session_base_bar(self) -> BarData | None:
+        """
+        Get bar data of current session start.
+        session start at 17:00 previous day for most of the exchanges.
+        """
+        if not self._bars:
+            return None
+
+        now: datetime = datetime.now(tz=list(self._bars.values())[0].datetime.tzinfo)
+        session_start: datetime = now.replace(hour=17, minute=0, second=0, microsecond=0)
+        if now.hour < 17:
+            session_start = session_start - timedelta(days=1)
+
+        # Find the bar data previous to session_start
+        candidate_bars: list[BarData] = [bar for bar in self._bars.values() if bar.datetime < session_start]
+        if not candidate_bars:
+            return None
+        return candidate_bars[-1]
