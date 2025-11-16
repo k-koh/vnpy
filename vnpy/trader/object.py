@@ -102,6 +102,10 @@ class BarData(BaseData):
     high_price: float = 0
     low_price: float = 0
     close_price: float = 0
+    eris_p_iv: float = 0
+    eris_c_iv: float = 0
+    eris_p_strike: int = 0
+    eris_c_strike: int = 0
 
     def __post_init__(self) -> None:
         """"""
