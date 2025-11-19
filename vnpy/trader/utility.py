@@ -261,10 +261,10 @@ class BarGenerator:
         self.last_tick = tick
 
         # update bar option eris iv
-        impv_value_p = None
-        strike_value_p = None
-        impv_value_c = None
-        strike_value_c = None
+        eris_p_iv = None
+        eris_p_strike = None
+        eris_c_iv = None
+        eris_c_strike = None
         atm_iv = None
         n225_vi = None
 
@@ -278,43 +278,28 @@ class BarGenerator:
 
                 instrument = option_engine.get_instrument(tick.vt_symbol)
                 if instrument:
+                    chain_data = None
                     if isinstance(instrument, UnderlyingData):
                         for chain in instrument.chains.values():
                             if chain.atm_impv:
-                                atm_iv = chain.atm_impv
+                                chain_data = chain
                                 break
                     elif isinstance(instrument, OptionData):
-                        atm_iv = instrument.chain.atm_impv
+                        chain_data = instrument.chain
+
+                    if chain_data:
+                        atm_iv = chain_data.atm_impv
+                        eris_p_iv = chain_data.eris_p_iv
+                        eris_p_strike = chain_data.eris_p_strike
+                        eris_c_iv = chain_data.eris_c_iv
+                        eris_c_strike = chain_data.eris_c_strike
             except ImportError:
                 pass
 
-        if self.main_engine:
-            gateway = self.main_engine.get_gateway("KBS")
-            if gateway:
-                # Put option
-                eris_put_match = gateway.rest_api.eris_put_match
-                if option_engine:
-                    kabus_symbol = eris_put_match.get('symbol')
-                    if kabus_symbol:
-                        option_data = option_engine.get_option_data_by_kabus_symbol(kabus_symbol)
-                        if option_data and option_data.mid_impv:
-                            impv_value_p = option_data.mid_impv
-                strike_value_p = eris_put_match.get('strike', None)
-
-                # Call option
-                eris_call_match = gateway.rest_api.eris_call_match
-                if option_engine:
-                    kabus_symbol = eris_call_match.get('symbol')
-                    if kabus_symbol:
-                        option_data = option_engine.get_option_data_by_kabus_symbol(kabus_symbol)
-                        if option_data and option_data.mid_impv:
-                            impv_value_c = option_data.mid_impv
-                strike_value_c = eris_call_match.get('strike', None)
-
-        self.bar.eris_p_iv = impv_value_p
-        self.bar.eris_p_strike = strike_value_p
-        self.bar.eris_c_iv = impv_value_c
-        self.bar.eris_c_strike = strike_value_c
+        self.bar.eris_p_iv = eris_p_iv
+        self.bar.eris_p_strike = eris_p_strike
+        self.bar.eris_c_iv = eris_c_iv
+        self.bar.eris_c_strike = eris_c_strike
         self.bar.atm_iv = atm_iv
         self.bar.n225_vi = n225_vi
 
