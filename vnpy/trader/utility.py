@@ -265,34 +265,58 @@ class BarGenerator:
         strike_value_p = None
         impv_value_c = None
         strike_value_c = None
+        atm_iv = None
+        n225_vi = None
 
-        gateway = self.main_engine.get_gateway("KBS")
-        if gateway:
+        option_engine = None
+        if self.main_engine:
             option_engine = self.main_engine.get_engine("OptionMaster")
-            # Put option
-            eris_put_match = gateway.rest_api.eris_put_match
-            if option_engine:
-                kabus_symbol = eris_put_match.get('symbol')
-                if kabus_symbol:
-                    option_data = option_engine.get_option_data_by_kabus_symbol(kabus_symbol)
-                    if option_data and option_data.mid_impv:
-                        impv_value_p = option_data.mid_impv
-            strike_value_p = eris_put_match.get('strike', None)
 
-            # Call option
-            eris_call_match = gateway.rest_api.eris_call_match
-            if option_engine:
-                kabus_symbol = eris_call_match.get('symbol')
-                if kabus_symbol:
-                    option_data = option_engine.get_option_data_by_kabus_symbol(kabus_symbol)
-                    if option_data and option_data.mid_impv:
-                        impv_value_c = option_data.mid_impv
-            strike_value_c = eris_call_match.get('strike', None)
+        if option_engine:
+            try:
+                from vnpy_optionmaster.base import OptionData, UnderlyingData
+
+                instrument = option_engine.get_instrument(tick.vt_symbol)
+                if instrument:
+                    if isinstance(instrument, UnderlyingData):
+                        for chain in instrument.chains.values():
+                            if chain.atm_impv:
+                                atm_iv = chain.atm_impv
+                                break
+                    elif isinstance(instrument, OptionData):
+                        atm_iv = instrument.chain.atm_impv
+            except ImportError:
+                pass
+
+        if self.main_engine:
+            gateway = self.main_engine.get_gateway("KBS")
+            if gateway:
+                # Put option
+                eris_put_match = gateway.rest_api.eris_put_match
+                if option_engine:
+                    kabus_symbol = eris_put_match.get('symbol')
+                    if kabus_symbol:
+                        option_data = option_engine.get_option_data_by_kabus_symbol(kabus_symbol)
+                        if option_data and option_data.mid_impv:
+                            impv_value_p = option_data.mid_impv
+                strike_value_p = eris_put_match.get('strike', None)
+
+                # Call option
+                eris_call_match = gateway.rest_api.eris_call_match
+                if option_engine:
+                    kabus_symbol = eris_call_match.get('symbol')
+                    if kabus_symbol:
+                        option_data = option_engine.get_option_data_by_kabus_symbol(kabus_symbol)
+                        if option_data and option_data.mid_impv:
+                            impv_value_c = option_data.mid_impv
+                strike_value_c = eris_call_match.get('strike', None)
 
         self.bar.eris_p_iv = impv_value_p
         self.bar.eris_p_strike = strike_value_p
         self.bar.eris_c_iv = impv_value_c
         self.bar.eris_c_strike = strike_value_c
+        self.bar.atm_iv = atm_iv
+        self.bar.n225_vi = n225_vi
 
         return self.bar, new_minute
 
@@ -336,7 +360,9 @@ class BarGenerator:
                 eris_p_strike=bar.eris_p_strike,
                 eris_p_iv=bar.eris_p_iv,
                 eris_c_strike=bar.eris_c_strike,
-                eris_c_iv=bar.eris_c_iv
+                eris_c_iv=bar.eris_c_iv,
+                atm_iv=bar.atm_iv,
+                n225_vi=bar.n225_vi
             )
             self.last_bar = None
         # Otherwise, update high/low price into window bar
@@ -359,6 +385,8 @@ class BarGenerator:
         self.window_bar.eris_p_iv = bar.eris_p_iv
         self.window_bar.eris_c_strike = bar.eris_c_strike
         self.window_bar.eris_c_iv = bar.eris_c_iv
+        self.window_bar.atm_iv = bar.atm_iv
+        self.window_bar.n225_vi = bar.n225_vi
 
         if self.last_bar:
             volume_change: float = bar.volume - self.last_bar.volume

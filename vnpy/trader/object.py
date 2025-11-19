@@ -107,6 +107,7 @@ class BarData(BaseData):
     eris_p_iv: float = 0
     eris_c_strike: int = 0
     eris_c_iv: float = 0
+    atm_iv: float = 0
     n225_vi: float = 0
     underlying_price: int = 0
     implied_volatility: float = 0
