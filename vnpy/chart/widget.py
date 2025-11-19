@@ -71,6 +71,10 @@ class ChartWidget(pg.PlotWidget):
         """
         # Create plot object
         plot: pg.PlotItem = pg.PlotItem(axisItems={"bottom": self._get_new_x_axis()})
+
+        axis = plot.getAxis("bottom")
+        axis.setHeight(40)
+
         plot.setMenuEnabled(False)
         plot.setClipToView(True)
         plot.hideAxis("left")
