@@ -109,6 +109,13 @@ class BarData(BaseData):
     eris_c_iv: float = 0
     atm_iv: float = 0
     n225_vi: float = 0
+    # Added fields for option
+    strike: int = 0
+    iv: float = 0
+    delta: float = 0
+    gamma: float = 0
+    vega: float = 0
+    theta: float = 0
     underlying_price: int = 0
     implied_volatility: float = 0
     futures_option_type: int = 0  # 1: future 2: option

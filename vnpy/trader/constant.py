@@ -121,6 +121,12 @@ class OptionType(Enum):
     CALL = _("看涨期权")
     PUT = _("看跌期权")
 
+class OptionPrevIvType(Enum):
+    """
+    Option 前日比IV type.
+    """
+    MATCH_DELTA = _("匹配Delta")
+    MATCH_STRIKE = _("匹配行权价")
 
 class Exchange(Enum):
     """
