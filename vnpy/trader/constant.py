@@ -125,8 +125,8 @@ class OptionPrevIvType(Enum):
     """
     Option 前日比IV type.
     """
-    MATCH_DELTA = _("匹配Delta")
-    MATCH_STRIKE = _("匹配行权价")
+    SAME_DELTA = _("同一0.1デルタ")
+    SAME_STRIKE = _("同一行使価格")
 
 class Exchange(Enum):
     """
