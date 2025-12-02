@@ -443,3 +443,12 @@ class QuoteRequest:
             gateway_name=gateway_name,
         )
         return quote
+
+@dataclass
+class AtmData:
+    """
+    ATM data contains information about:
+        * ATM option statistics
+    """
+    chain_symbol: str
+    atm_strike: int
