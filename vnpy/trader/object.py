@@ -102,6 +102,8 @@ class BarData(BaseData):
     high_price: float = 0
     low_price: float = 0
     close_price: float = 0
+    pre_close: float = 0
+    
     # Added fields for option IV storage
     eris_p_strike: int = 0
     eris_p_iv: float = 0
