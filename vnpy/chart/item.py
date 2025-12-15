@@ -5,7 +5,7 @@ import pyqtgraph as pg      # type: ignore
 from vnpy.trader.ui import QtCore, QtGui, QtWidgets
 from vnpy.trader.object import BarData
 
-from .base import BLACK_COLOR, UP_COLOR, DOWN_COLOR, PEN_WIDTH, BAR_WIDTH
+from .base import BLACK_COLOR, UP_COLOR, DOWN_COLOR, ATM_COLOR, PEN_WIDTH, BAR_WIDTH
 from .manager import BarManager
 
 
@@ -186,6 +186,12 @@ class CandleItem(ChartItem):
         )
         self._lower_line_pen.setStyle(QtCore.Qt.DashLine)
 
+        self._base_line_pen: QtGui.QPen = pg.mkPen(
+            color=ATM_COLOR,
+            width=PEN_WIDTH
+        )
+        self._base_line_pen.setStyle(QtCore.Qt.DotLine)
+
     def _get_atm_iv_daily(self, ix: int) -> float:
         """"""
         if ix in self._atm_iv_daily:
@@ -252,6 +258,12 @@ class CandleItem(ChartItem):
             painter.drawLine(
                 QtCore.QPointF(ix - BAR_WIDTH, lower_price),
                 QtCore.QPointF(ix + BAR_WIDTH, lower_price)
+            )
+
+            painter.setPen(self._base_line_pen)
+            painter.drawLine(
+                QtCore.QPointF(ix - BAR_WIDTH, base_price),
+                QtCore.QPointF(ix + BAR_WIDTH, base_price)
             )
 
         # Finish
