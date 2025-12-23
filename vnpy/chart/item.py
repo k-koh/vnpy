@@ -266,6 +266,21 @@ class CandleItem(ChartItem):
                 QtCore.QPointF(ix + BAR_WIDTH, base_price)
             )
 
+            upper_price = base_price * (1 + daily_iv * 0.5)
+            lower_price = base_price * (1 - daily_iv * 0.5)
+
+            painter.setPen(self._upper_line_pen)
+            painter.drawLine(
+                QtCore.QPointF(ix - BAR_WIDTH, upper_price),
+                QtCore.QPointF(ix + BAR_WIDTH, upper_price)
+            )
+
+            painter.setPen(self._lower_line_pen)
+            painter.drawLine(
+                QtCore.QPointF(ix - BAR_WIDTH, lower_price),
+                QtCore.QPointF(ix + BAR_WIDTH, lower_price)
+            )
+
         # Finish
         painter.end()
         return candle_picture
