@@ -271,7 +271,7 @@ class BarGenerator:
         delta012_p_iv = None      # Put Δ0.12 iv
         delta012_p_strike = None  # Put Δ0.12 strike
         atm_iv = None
-        n225_vi = None
+        n225_vi = tick.n225_vi
 
         option_engine = None
         if self.main_engine:

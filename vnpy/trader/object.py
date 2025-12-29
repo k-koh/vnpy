@@ -77,6 +77,8 @@ class TickData(BaseData):
     ask_volume_4: float = 0
     ask_volume_5: float = 0
 
+    n225_vi: float = 0
+
     localtime: Datetime | None = None
 
     def __post_init__(self) -> None:

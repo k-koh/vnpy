@@ -110,6 +110,20 @@ class BaseDatabase(ABC):
         pass
 
     @abstractmethod
+    def load_vi_data(
+        self,
+        symbol: str,
+        exchange: Exchange,
+        interval: Interval,
+        start: datetime,
+        end: datetime
+    ) -> list[BarData]:
+        """
+        Load option data from database.
+        """
+        pass
+
+    @abstractmethod
     def delete_bar_data(
         self,
         symbol: str,
