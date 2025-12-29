@@ -460,3 +460,12 @@ class AtmData:
     """
     chain_symbol: str
     atm_strike: int
+
+@dataclass
+class ViData:
+    """
+    VI data contains information about:
+        * volatility index statistics
+    """
+    date: Datetime
+    n225_vi: float
