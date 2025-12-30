@@ -334,25 +334,31 @@ class CandleItem(ChartItem):
         bar: BarData | None = self._manager.get_bar(ix)
 
         if bar:
+            close = f"{bar.close_price:.2f}"
             words: list = [
-                "Date",
                 bar.datetime.strftime("%Y-%m-%d"),
-                "",
-                "Time",
                 bar.datetime.strftime("%H:%M"),
-                "",
-                "Open",
-                str(bar.open_price),
-                "",
-                "High",
-                str(bar.high_price),
-                "",
-                "Low",
-                str(bar.low_price),
-                "",
-                "Close",
-                str(bar.close_price)
+                close
             ]
+            # words: list = [
+            #     "Date",
+            #     bar.datetime.strftime("%Y-%m-%d"),
+            #     "",
+            #     "Time",
+            #     bar.datetime.strftime("%H:%M"),
+            #     "",
+            #     "Open",
+            #     str(bar.open_price),
+            #     "",
+            #     "High",
+            #     str(bar.high_price),
+            #     "",
+            #     "Low",
+            #     str(bar.low_price),
+            #     "",
+            #     "Close",
+            #     str(bar.close_price)
+            # ]
             text: str = "\n".join(words)
         else:
             text = ""

@@ -484,10 +484,21 @@ class ChartCursor(QtCore.QObject):
 
         dt: datetime | None = self._manager.get_datetime(self._x)
         if dt:
-            self._x_label.setText(dt.strftime("%Y-%m-%d %H:%M:%S"))
+            self._x_label.setText(dt.strftime("%Y-%m-%d %H:%M"))
             self._x_label.show()
+
+            # Get visible x-range from the first plot, which represents the main view
+            first_plot_view_box = list(self._plots.values())[0].getViewBox()
+            x_min_visible, x_max_visible = first_plot_view_box.viewRange()[0]
+
+            # Determine anchor based on cursor position relative to visible range
+            # If cursor is in the right 20% of the visible range
+            if self._x > (x_max_visible - (x_max_visible - x_min_visible) * 0.2):
+                self._x_label.setAnchor((1, 0)) # Anchor to top-right, so text extends left
+            else:
+                self._x_label.setAnchor((0, 0)) # Anchor to top-left, so text extends right
+
             self._x_label.setPos(self._x, bottom_right.y())
-            self._x_label.setAnchor((0, 0))
 
     def update_info(self) -> None:
         """"""
@@ -509,8 +520,20 @@ class ChartCursor(QtCore.QObject):
             info.show()
 
             view: pg.ViewBox = self._views[plot_name]
-            top_left = view.mapSceneToView(view.sceneBoundingRect().topLeft())
-            info.setPos(top_left)
+            top_left_point = view.mapSceneToView(view.sceneBoundingRect().topLeft())
+
+            # Get visible x-range from the first plot, which represents the main view
+            first_plot_view_box = list(self._plots.values())[0].getViewBox()
+            x_min_visible, x_max_visible = first_plot_view_box.viewRange()[0]
+
+            # Determine anchor based on cursor position relative to visible range
+            # If cursor is in the right 20% of the visible range
+            if self._x > (x_max_visible - (x_max_visible - x_min_visible) * 0.2):
+                info.setAnchor((1, 0)) # Anchor to top-right, so text extends left
+            else:
+                info.setAnchor((0, 0)) # Anchor to top-left, so text extends right
+
+            info.setPos(self._x, top_left_point.y())
 
     def move_right(self) -> None:
         """
