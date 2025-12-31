@@ -281,6 +281,56 @@ class CandleItem(ChartItem):
                 QtCore.QPointF(ix + BAR_WIDTH, lower_price)
             )
 
+            upper_price = base_price * (1 + daily_iv * 0.8)
+            lower_price = base_price * (1 - daily_iv * 0.8)
+            if bar.close_price > upper_price:
+                painter.setPen(self._upper_line_pen)
+                upper_price = base_price * (1 + daily_iv)
+                painter.drawLine(
+                    QtCore.QPointF(ix - BAR_WIDTH, upper_price),
+                    QtCore.QPointF(ix + BAR_WIDTH, upper_price)
+                )
+            elif bar.close_price < lower_price:
+                painter.setPen(self._lower_line_pen)
+                lower_price = base_price * (1 - daily_iv)
+                painter.drawLine(
+                    QtCore.QPointF(ix - BAR_WIDTH, lower_price),
+                    QtCore.QPointF(ix + BAR_WIDTH, lower_price)
+                )
+
+            upper_price = base_price * (1 + daily_iv * 1.3)
+            lower_price = base_price * (1 - daily_iv * 1.3)
+            if bar.close_price > upper_price:
+                painter.setPen(self._upper_line_pen)
+                upper_price = base_price * (1 + daily_iv * 1.5)
+                painter.drawLine(
+                    QtCore.QPointF(ix - BAR_WIDTH, upper_price),
+                    QtCore.QPointF(ix + BAR_WIDTH, upper_price)
+                )
+            elif bar.close_price < lower_price:
+                painter.setPen(self._lower_line_pen)
+                lower_price = base_price * (1 - daily_iv * 1.5)
+                painter.drawLine(
+                    QtCore.QPointF(ix - BAR_WIDTH, lower_price),
+                    QtCore.QPointF(ix + BAR_WIDTH, lower_price)
+                )
+
+            upper_price = base_price * (1 + daily_iv * 1.8)
+            lower_price = base_price * (1 - daily_iv * 1.8)
+            if bar.close_price > upper_price:
+                painter.setPen(self._upper_line_pen)
+                upper_price = base_price * (1 + daily_iv * 2.0)
+                painter.drawLine(
+                    QtCore.QPointF(ix - BAR_WIDTH, upper_price),
+                    QtCore.QPointF(ix + BAR_WIDTH, upper_price)
+                )
+            elif bar.close_price < lower_price:
+                painter.setPen(self._lower_line_pen)
+                lower_price = base_price * (1 - daily_iv * 2.0)
+                painter.drawLine(
+                    QtCore.QPointF(ix - BAR_WIDTH, lower_price),
+                    QtCore.QPointF(ix + BAR_WIDTH, lower_price)
+                )
         # Finish
         painter.end()
         return candle_picture
