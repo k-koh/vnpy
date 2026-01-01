@@ -30,6 +30,7 @@ class ChartWidget(pg.PlotWidget):
         self._plots: dict[str, pg.PlotItem] = {}
         self._items: dict[str, ChartItem] = {}
         self._item_plot_map: dict[ChartItem, pg.PlotItem] = {}
+        self._item_plot_map2: dict[ChartItem, pg.PlotItem] = {}
 
         self._first_plot: pg.PlotItem | None = None
         self._cursor: ChartCursor | None = None
@@ -57,7 +58,7 @@ class ChartWidget(pg.PlotWidget):
         """"""
         if not self._cursor:
             self._cursor = ChartCursor(
-                self, self._manager, self._plots, self._item_plot_map)
+                self, self._manager, self._plots, self._item_plot_map, self._item_plot_map2)
 
     def add_plot(
         self,
@@ -333,7 +334,8 @@ class ChartCursor(QtCore.QObject):
         widget: ChartWidget,
         manager: BarManager,
         plots: dict[str, pg.GraphicsObject],
-        item_plot_map: dict[ChartItem, pg.GraphicsObject]
+        item_plot_map: dict[ChartItem, pg.GraphicsObject],
+        item_plot_map2: dict[ChartItem, pg.GraphicsObject]
     ) -> None:
         """"""
         super().__init__()
@@ -342,6 +344,7 @@ class ChartCursor(QtCore.QObject):
         self._manager: BarManager = manager
         self._plots: dict[str, pg.GraphicsObject] = plots
         self._item_plot_map: dict[ChartItem, pg.GraphicsObject] = item_plot_map
+        self._item_plot_map2: dict[ChartItem, pg.GraphicsObject] = item_plot_map2
 
         self._x: int = 0
         self._y: float = 0
@@ -505,6 +508,15 @@ class ChartCursor(QtCore.QObject):
         buf: dict = {}
 
         for item, plot in self._item_plot_map.items():
+            item_info_text: str = item.get_info_text(self._x)
+
+            if plot not in buf:
+                buf[plot] = item_info_text
+            else:
+                if item_info_text:
+                    buf[plot] += ("\n\n" + item_info_text)
+
+        for item, plot in self._item_plot_map2.items():
             item_info_text: str = item.get_info_text(self._x)
 
             if plot not in buf:
