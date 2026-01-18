@@ -5,7 +5,7 @@ import pyqtgraph as pg      # type: ignore
 from vnpy.trader.ui import QtCore, QtGui, QtWidgets
 from vnpy.trader.object import BarData
 
-from .base import BLACK_COLOR, UP_COLOR, DOWN_COLOR, ATM_COLOR, PEN_WIDTH, BAR_WIDTH
+from .base import BLACK_COLOR, UP_COLOR, DOWN_COLOR, YELLOW_COLOR, PEN_WIDTH, BAR_WIDTH
 from .manager import BarManager
 
 
@@ -187,7 +187,7 @@ class CandleItem(ChartItem):
         self._lower_line_pen.setStyle(QtCore.Qt.DashLine)
 
         self._base_line_pen: QtGui.QPen = pg.mkPen(
-            color=ATM_COLOR,
+            color=YELLOW_COLOR,
             width=PEN_WIDTH
         )
         self._base_line_pen.setStyle(QtCore.Qt.DotLine)

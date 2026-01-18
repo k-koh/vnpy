@@ -268,6 +268,8 @@ class BarGenerator:
         eris_c_strike = None
         delta022_c_iv = None      # Call Δ0.22 iv
         delta022_c_strike = None  # Call Δ0.22 strike
+        delta002_c_iv = None  # Call Δ0.02 iv
+        delta002_c_strike = None  # Call Δ0.02 strike
         delta012_p_iv = None      # Put Δ0.12 iv
         delta012_p_strike = None  # Put Δ0.12 strike
         atm_iv = None
@@ -300,6 +302,8 @@ class BarGenerator:
                         eris_c_strike = chain_data.eris_c_strike
                         delta022_c_iv = chain_data.delta022_c_iv  # Call Δ0.22 iv
                         delta022_c_strike = chain_data.delta022_c_strike  # Call Δ0.22 strike
+                        delta002_c_iv = chain_data.delta002_c_iv  # Call Δ0.02 iv
+                        delta002_c_strike = chain_data.delta002_c_strike  # Call Δ0.02 strike
                         delta012_p_iv = chain_data.delta012_p_iv  # Put Δ0.12 iv
                         delta012_p_strike = chain_data.delta012_p_strike  # Put Δ0.12 strike
             except ImportError:
@@ -311,6 +315,8 @@ class BarGenerator:
         self.bar.eris_c_strike = eris_c_strike
         self.bar.delta022_c_iv = delta022_c_iv  # Call Δ0.22 iv
         self.bar.delta022_c_strike = delta022_c_strike  # Call Δ0.22 strike
+        self.bar.delta002_c_iv = delta002_c_iv  # Call Δ0.02 iv
+        self.bar.delta002_c_strike = delta002_c_strike  # Call Δ0.02 strike
         self.bar.delta012_p_iv = delta012_p_iv  # Put Δ0.12 iv
         self.bar.delta012_p_strike = delta012_p_strike  # Put Δ0.12 strike
         self.bar.atm_iv = atm_iv
@@ -362,6 +368,8 @@ class BarGenerator:
                 eris_c_iv=bar.eris_c_iv,
                 delta022_c_iv=bar.delta022_c_iv,  # Call Δ0.22 iv
                 delta022_c_strike = bar.delta022_c_strike,  # Call Δ0.22 strike
+                delta002_c_iv=bar.delta002_c_iv,  # Call Δ0.02 iv
+                delta002_c_strike=bar.delta002_c_strike,  # Call Δ0.02 strike
                 delta012_p_iv = bar.delta012_p_iv,  # Put Δ0.12 iv
                 delta012_p_strike = bar.delta012_p_strike,  # Put Δ0.12 strike
                 atm_iv=bar.atm_iv,
@@ -390,6 +398,8 @@ class BarGenerator:
         self.window_bar.eris_c_iv = bar.eris_c_iv
         self.window_bar.delta022_c_iv = bar.delta022_c_iv  # Call Δ0.22 iv
         self.window_bar.delta022_c_strike = bar.delta022_c_strike  # Call Δ0.22 strike
+        self.window_bar.delta002_c_iv = bar.delta002_c_iv  # Call Δ0.02 iv
+        self.window_bar.delta002_c_strike = bar.delta002_c_strike  # Call Δ0.02 strike
         self.window_bar.delta012_p_iv = bar.delta012_p_iv  # Put Δ0.12 iv
         self.window_bar.delta012_p_strike = bar.delta012_p_strike  # Put Δ0.12 strike
         self.window_bar.atm_iv = bar.atm_iv
