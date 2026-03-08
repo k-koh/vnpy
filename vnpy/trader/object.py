@@ -117,6 +117,8 @@ class BarData(BaseData):
     delta002_c_strike: int = 0  # Call Δ0.02 strike
     delta012_p_iv: float = 0  # Put Δ0.12 iv
     delta012_p_strike: int = 0  # Put Δ0.12 strike
+    delta002_p_iv: float = 0  # Put Δ0.02 iv
+    delta002_p_strike: int = 0  # Put Δ0.02 strike
     atm_iv: float = 0
     n225_vi: float = 0
     # Added fields for option
