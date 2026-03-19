@@ -5,7 +5,7 @@ import pyqtgraph as pg      # type: ignore
 from vnpy.trader.ui import QtCore, QtGui, QtWidgets
 from vnpy.trader.object import BarData
 
-from .base import BLACK_COLOR, UP_COLOR, DOWN_COLOR, YELLOW_COLOR, PEN_WIDTH, BAR_WIDTH
+from .base import BLACK_COLOR, UP_COLOR, DOWN_COLOR, YELLOW_COLOR, GREY_COLOR, PEN_WIDTH, BAR_WIDTH
 from .manager import BarManager
 
 
@@ -192,6 +192,12 @@ class CandleItem(ChartItem):
         )
         self._base_line_pen.setStyle(QtCore.Qt.DotLine)
 
+        self._market_time_pen: QtGui.QPen = pg.mkPen(
+            color=GREY_COLOR,
+            width=PEN_WIDTH
+        )
+        self._market_time_pen.setStyle(QtCore.Qt.DashLine)
+
     def _get_atm_iv_daily(self, ix: int) -> float:
         """"""
         if ix in self._atm_iv_daily:
@@ -364,6 +370,33 @@ class CandleItem(ChartItem):
                     QtCore.QPointF(ix - BAR_WIDTH, lower_price),
                     QtCore.QPointF(ix + BAR_WIDTH, lower_price)
                 )
+        # Draw vertical lines at market day open (08:45) and night open (17:00)
+        bar_time = bar.datetime.strftime("%H:%M")
+        prev_bar: BarData | None = self._manager.get_bar(ix - 1) if ix > 0 else None
+        if prev_bar:
+            prev_time = prev_bar.datetime.strftime("%H:%M")
+            # First bar at or after 08:45
+            if bar_time >= "08:45" and (prev_time < "08:45" or prev_bar.datetime.date() != bar.datetime.date()):
+                painter.setPen(self._market_time_pen)
+                painter.drawLine(
+                    QtCore.QPointF(ix, -999999),
+                    QtCore.QPointF(ix, 999999)
+                )
+            # First bar at or after 17:00
+            if bar_time >= "17:00" and prev_time < "17:00":
+                painter.setPen(self._market_time_pen)
+                painter.drawLine(
+                    QtCore.QPointF(ix, -999999),
+                    QtCore.QPointF(ix, 999999)
+                )
+        elif ix == 0 and bar_time >= "08:45":
+            # First bar in the dataset
+            painter.setPen(self._market_time_pen)
+            painter.drawLine(
+                QtCore.QPointF(ix, -999999),
+                QtCore.QPointF(ix, 999999)
+            )
+
         # Finish
         painter.end()
         return candle_picture
