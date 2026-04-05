@@ -472,16 +472,29 @@ class ChartCursor(QtCore.QObject):
         axis_height = bottom_plot.getAxis("bottom").height()
         axis_offset: QtCore.QPointF = QtCore.QPointF(axis_width, axis_height)
 
+        # Use the first view (candle) to compute right edge x, as the bottom
+        # view (volume) may have degenerate y-range (e.g. zero volume) causing
+        # mapSceneToView to return NaN/inf for both coordinates.
+        first_view: pg.ViewBox = list(self._views.values())[0]
+        right_x = first_view.mapSceneToView(
+            first_view.sceneBoundingRect().bottomRight() - axis_offset
+        ).x()
+
+        # Try mapSceneToView on the bottom view for precise bottom y position.
+        # Falls back to viewRange if the result is NaN (degenerate y-range,
+        # e.g. when all volumes are zero).
         bottom_view: pg.ViewBox = list(self._views.values())[-1]
-        bottom_right = bottom_view.mapSceneToView(
+        bottom_y = bottom_view.mapSceneToView(
             bottom_view.sceneBoundingRect().bottomRight() - axis_offset
-        )
+        ).y()
+        if bottom_y != bottom_y:  # NaN check
+            bottom_y = bottom_view.viewRange()[1][0]
 
         for plot_name, label in self._y_labels.items():
             if plot_name == self._plot_name:
                 label.setText(str(self._y))
                 label.show()
-                label.setPos(bottom_right.x(), self._y)
+                label.setPos(right_x, self._y)
             else:
                 label.hide()
 
@@ -501,7 +514,7 @@ class ChartCursor(QtCore.QObject):
             else:
                 self._x_label.setAnchor((0, 0)) # Anchor to top-left, so text extends right
 
-            self._x_label.setPos(self._x, bottom_right.y())
+            self._x_label.setPos(self._x, bottom_y)
 
     def update_info(self) -> None:
         """"""
