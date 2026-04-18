@@ -264,8 +264,10 @@ class BarGenerator:
         # update bar option eris iv
         eris_p_iv = None
         eris_p_strike = None
+        eris_p_delta = None
         eris_c_iv = None
         eris_c_strike = None
+        eris_c_delta = None
         atm_iv = None
         n225_vi = tick.n225_vi
 
@@ -292,15 +294,19 @@ class BarGenerator:
                         atm_iv = chain_data.atm_impv
                         eris_p_iv = chain_data.eris_p_iv
                         eris_p_strike = chain_data.eris_p_strike
+                        eris_p_delta = chain_data.eris_p_delta
                         eris_c_iv = chain_data.eris_c_iv
                         eris_c_strike = chain_data.eris_c_strike
+                        eris_c_delta = chain_data.eris_c_delta
             except ImportError:
                 pass
 
         self.bar.eris_p_iv = eris_p_iv
         self.bar.eris_p_strike = eris_p_strike
+        self.bar.eris_p_delta = eris_p_delta
         self.bar.eris_c_iv = eris_c_iv
         self.bar.eris_c_strike = eris_c_strike
+        self.bar.eris_c_delta = eris_c_delta
         self.bar.atm_iv = atm_iv
         self.bar.n225_vi = n225_vi
 
@@ -346,8 +352,10 @@ class BarGenerator:
                 turnover=bar.turnover,
                 eris_p_strike=bar.eris_p_strike,
                 eris_p_iv=bar.eris_p_iv,
+                eris_p_delta=bar.eris_p_delta,
                 eris_c_strike=bar.eris_c_strike,
                 eris_c_iv=bar.eris_c_iv,
+                eris_c_delta=bar.eris_c_delta,
                 atm_iv=bar.atm_iv,
                 n225_vi=bar.n225_vi
             )
@@ -370,8 +378,10 @@ class BarGenerator:
         self.window_bar.open_interest = bar.open_interest
         self.window_bar.eris_p_strike = bar.eris_p_strike
         self.window_bar.eris_p_iv = bar.eris_p_iv
+        self.window_bar.eris_p_delta = bar.eris_p_delta
         self.window_bar.eris_c_strike = bar.eris_c_strike
         self.window_bar.eris_c_iv = bar.eris_c_iv
+        self.window_bar.eris_c_delta = bar.eris_c_delta
         self.window_bar.atm_iv = bar.atm_iv
         self.window_bar.n225_vi = bar.n225_vi
 

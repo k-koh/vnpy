@@ -109,8 +109,10 @@ class BarData(BaseData):
     # Added fields for option IV storage
     eris_p_strike: int = 0
     eris_p_iv: float = 0
+    eris_p_delta: float = 0
     eris_c_strike: int = 0
     eris_c_iv: float = 0
+    eris_c_delta: float = 0
     atm_iv: float = 0
     n225_vi: float = 0
     # Added fields for option
