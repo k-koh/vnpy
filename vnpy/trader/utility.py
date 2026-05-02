@@ -268,6 +268,12 @@ class BarGenerator:
         eris_c_iv = None
         eris_c_strike = None
         eris_c_delta = None
+        delta002_p_iv = None
+        delta002_p_strike = None
+        delta002_p_delta = None
+        delta002_c_iv = None
+        delta002_c_strike = None
+        delta002_c_delta = None
         atm_iv = None
         n225_vi = tick.n225_vi
 
@@ -298,6 +304,12 @@ class BarGenerator:
                         eris_c_iv = chain_data.eris_c_iv
                         eris_c_strike = chain_data.eris_c_strike
                         eris_c_delta = chain_data.eris_c_delta
+                        delta002_p_iv = chain_data.delta002_p_iv
+                        delta002_p_strike = chain_data.delta002_p_strike
+                        delta002_p_delta = chain_data.delta002_p_delta
+                        delta002_c_iv = chain_data.delta002_c_iv
+                        delta002_c_strike = chain_data.delta002_c_strike
+                        delta002_c_delta = chain_data.delta002_c_delta
             except ImportError:
                 pass
 
@@ -307,6 +319,12 @@ class BarGenerator:
         self.bar.eris_c_iv = eris_c_iv
         self.bar.eris_c_strike = eris_c_strike
         self.bar.eris_c_delta = eris_c_delta
+        self.bar.delta002_p_iv = delta002_p_iv
+        self.bar.delta002_p_strike = delta002_p_strike
+        self.bar.delta002_p_delta = delta002_p_delta
+        self.bar.delta002_c_iv = delta002_c_iv
+        self.bar.delta002_c_strike = delta002_c_strike
+        self.bar.delta002_c_delta = delta002_c_delta
         self.bar.atm_iv = atm_iv
         self.bar.n225_vi = n225_vi
 
@@ -356,6 +374,12 @@ class BarGenerator:
                 eris_c_strike=bar.eris_c_strike,
                 eris_c_iv=bar.eris_c_iv,
                 eris_c_delta=bar.eris_c_delta,
+                delta002_p_strike=bar.delta002_p_strike,
+                delta002_p_iv=bar.delta002_p_iv,
+                delta002_p_delta=bar.delta002_p_delta,
+                delta002_c_strike=bar.delta002_c_strike,
+                delta002_c_iv=bar.delta002_c_iv,
+                delta002_c_delta=bar.delta002_c_delta,
                 atm_iv=bar.atm_iv,
                 n225_vi=bar.n225_vi
             )
@@ -382,6 +406,12 @@ class BarGenerator:
         self.window_bar.eris_c_strike = bar.eris_c_strike
         self.window_bar.eris_c_iv = bar.eris_c_iv
         self.window_bar.eris_c_delta = bar.eris_c_delta
+        self.window_bar.delta002_p_strike = bar.delta002_p_strike
+        self.window_bar.delta002_p_iv = bar.delta002_p_iv
+        self.window_bar.delta002_p_delta = bar.delta002_p_delta
+        self.window_bar.delta002_c_strike = bar.delta002_c_strike
+        self.window_bar.delta002_c_iv = bar.delta002_c_iv
+        self.window_bar.delta002_c_delta = bar.delta002_c_delta
         self.window_bar.atm_iv = bar.atm_iv
         self.window_bar.n225_vi = bar.n225_vi
 

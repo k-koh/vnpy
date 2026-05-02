@@ -287,8 +287,6 @@ class CandleItem(ChartItem):
                 QtCore.QPointF(ix + BAR_WIDTH, lower_price)
             )
 
-            upper_price = base_price * (1 + daily_iv * 0.8)
-            lower_price = base_price * (1 - daily_iv * 0.8)
             if bar.close_price > upper_price:
                 painter.setPen(self._upper_line_pen)
                 upper_price = base_price * (1 + daily_iv)
@@ -304,8 +302,8 @@ class CandleItem(ChartItem):
                     QtCore.QPointF(ix + BAR_WIDTH, lower_price)
                 )
 
-            upper_price = base_price * (1 + daily_iv * 1.3)
-            lower_price = base_price * (1 - daily_iv * 1.3)
+            upper_price = base_price * (1 + daily_iv * 1.0)
+            lower_price = base_price * (1 - daily_iv * 1.0)
             if bar.close_price > upper_price:
                 painter.setPen(self._upper_line_pen)
                 upper_price = base_price * (1 + daily_iv * 1.5)
@@ -321,8 +319,8 @@ class CandleItem(ChartItem):
                     QtCore.QPointF(ix + BAR_WIDTH, lower_price)
                 )
 
-            upper_price = base_price * (1 + daily_iv * 1.8)
-            lower_price = base_price * (1 - daily_iv * 1.8)
+            upper_price = base_price * (1 + daily_iv * 1.5)
+            lower_price = base_price * (1 - daily_iv * 1.5)
             if bar.close_price > upper_price:
                 painter.setPen(self._upper_line_pen)
                 upper_price = base_price * (1 + daily_iv * 2.0)
@@ -337,8 +335,8 @@ class CandleItem(ChartItem):
                     QtCore.QPointF(ix - BAR_WIDTH, lower_price),
                     QtCore.QPointF(ix + BAR_WIDTH, lower_price)
                 )
-            upper_price = base_price * (1 + daily_iv * 2.3)
-            lower_price = base_price * (1 - daily_iv * 2.3)
+            upper_price = base_price * (1 + daily_iv * 2.0)
+            lower_price = base_price * (1 - daily_iv * 2.0)
             if bar.close_price > upper_price:
                 painter.setPen(self._upper_line_pen)
                 upper_price = base_price * (1 + daily_iv * 2.5)
@@ -354,8 +352,8 @@ class CandleItem(ChartItem):
                     QtCore.QPointF(ix + BAR_WIDTH, lower_price)
                 )
 
-            upper_price = base_price * (1 + daily_iv * 2.8)
-            lower_price = base_price * (1 - daily_iv * 2.8)
+            upper_price = base_price * (1 + daily_iv * 2.5)
+            lower_price = base_price * (1 - daily_iv * 2.5)
             if bar.close_price > upper_price:
                 painter.setPen(self._upper_line_pen)
                 upper_price = base_price * (1 + daily_iv * 3.0)
@@ -450,12 +448,20 @@ class CandleItem(ChartItem):
         bar: BarData | None = self._manager.get_bar(ix)
 
         if bar:
-            close = f"{bar.close_price:.2f}"
+            close = f"{bar.close_price:.0f}"
             words: list = [
                 bar.datetime.strftime("%Y-%m-%d"),
                 bar.datetime.strftime("%H:%M"),
                 close
             ]
+
+            daily_iv = self._get_atm_iv_daily(ix)
+            if daily_iv > 0:
+                base_price = bar.pre_close if bar.pre_close > 0 else bar.open_price
+                for mult in (0.5, 1.0, 1.5, 2.0, 2.5, 3.0):
+                    upper_price = base_price * (1 + daily_iv * mult)
+                    lower_price = base_price * (1 - daily_iv * mult)
+                    words.append(f"U{mult}: {upper_price:.0f} L{mult}: {lower_price:.0f}")
             # words: list = [
             #     "Date",
             #     bar.datetime.strftime("%Y-%m-%d"),
