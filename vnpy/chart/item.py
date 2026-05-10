@@ -211,11 +211,75 @@ class CandleItem(ChartItem):
         self._atm_iv_daily[ix] = daily_iv
         return daily_iv
 
+    def _get_drawn_iv_bounds(self, ix: int) -> tuple[float, float] | None:
+        """
+        Return (lower_price, upper_price) for the outermost IV-band lines actually
+        drawn for bar at ix, or None when no IV bands are drawn.
+
+        Mirrors the multiplier ladder in _draw_bar_picture: a 0.5x band is always
+        drawn, and the next 0.5x step is drawn each time close_price breaks
+        through the current step (up to 3.0x).
+        """
+        bar = self._manager.get_bar(ix)
+        if not bar:
+            return None
+        daily_iv = self._get_atm_iv_daily(ix)
+        if daily_iv <= 0:
+            return None
+
+        base_price = bar.pre_close if bar.pre_close > 0 else bar.open_price
+
+        upper_mult: float = 0.5
+        for mult in (0.5, 1.0, 1.5, 2.0, 2.5):
+            if bar.close_price > base_price * (1 + daily_iv * mult):
+                upper_mult = mult + 0.5
+            else:
+                break
+
+        lower_mult: float = 0.5
+        for mult in (0.5, 1.0, 1.5, 2.0, 2.5):
+            if bar.close_price < base_price * (1 - daily_iv * mult):
+                lower_mult = mult + 0.5
+            else:
+                break
+
+        upper_price = base_price * (1 + daily_iv * upper_mult)
+        lower_price = base_price * (1 - daily_iv * lower_mult)
+        return lower_price, upper_price
+
     def _draw_bar_picture(self, ix: int, bar: BarData) -> QtGui.QPicture:
         """"""
         # Create objects
         candle_picture: QtGui.QPicture = QtGui.QPicture()
         painter: QtGui.QPainter = QtGui.QPainter(candle_picture)
+
+        # Draw vertical lines at market day open (08:45) and night open (17:00)
+        # first, so the candle/reference lines render on top of them.
+        bar_time = bar.datetime.strftime("%H:%M")
+        prev_bar: BarData | None = self._manager.get_bar(ix - 1) if ix > 0 else None
+        if prev_bar:
+            prev_time = prev_bar.datetime.strftime("%H:%M")
+            # First bar at or after 08:45
+            if bar_time >= "08:45" and (prev_time < "08:45" or prev_bar.datetime.date() != bar.datetime.date()):
+                painter.setPen(self._market_time_pen)
+                painter.drawLine(
+                    QtCore.QPointF(ix, -999999),
+                    QtCore.QPointF(ix, 999999)
+                )
+            # First bar at or after 17:00
+            if bar_time >= "17:00" and prev_time < "17:00":
+                painter.setPen(self._market_time_pen)
+                painter.drawLine(
+                    QtCore.QPointF(ix, -999999),
+                    QtCore.QPointF(ix, 999999)
+                )
+        elif ix == 0 and bar_time >= "08:45":
+            # First bar in the dataset
+            painter.setPen(self._market_time_pen)
+            painter.drawLine(
+                QtCore.QPointF(ix, -999999),
+                QtCore.QPointF(ix, 999999)
+            )
 
         # Set painter color
         if bar.close_price >= bar.open_price:
@@ -368,33 +432,6 @@ class CandleItem(ChartItem):
                     QtCore.QPointF(ix - BAR_WIDTH, lower_price),
                     QtCore.QPointF(ix + BAR_WIDTH, lower_price)
                 )
-        # Draw vertical lines at market day open (08:45) and night open (17:00)
-        bar_time = bar.datetime.strftime("%H:%M")
-        prev_bar: BarData | None = self._manager.get_bar(ix - 1) if ix > 0 else None
-        if prev_bar:
-            prev_time = prev_bar.datetime.strftime("%H:%M")
-            # First bar at or after 08:45
-            if bar_time >= "08:45" and (prev_time < "08:45" or prev_bar.datetime.date() != bar.datetime.date()):
-                painter.setPen(self._market_time_pen)
-                painter.drawLine(
-                    QtCore.QPointF(ix, -999999),
-                    QtCore.QPointF(ix, 999999)
-                )
-            # First bar at or after 17:00
-            if bar_time >= "17:00" and prev_time < "17:00":
-                painter.setPen(self._market_time_pen)
-                painter.drawLine(
-                    QtCore.QPointF(ix, -999999),
-                    QtCore.QPointF(ix, 999999)
-                )
-        elif ix == 0 and bar_time >= "08:45":
-            # First bar in the dataset
-            painter.setPen(self._market_time_pen)
-            painter.drawLine(
-                QtCore.QPointF(ix, -999999),
-                QtCore.QPointF(ix, 999999)
-            )
-
         # Finish
         painter.end()
         return candle_picture
@@ -417,27 +454,22 @@ class CandleItem(ChartItem):
         If min_ix and max_ix not specified, then return range with whole data set.
         """
         min_price, max_price = self._manager.get_price_range(min_ix, max_ix)
-        
+
         if min_ix is None or max_ix is None:
             bars = self._manager.get_all_bars()
             min_ix = 0
-            max_ix = len(bars) -1
+            max_ix = len(bars) - 1
 
         if not (self._manager.get_count() and max_ix >= min_ix):
             return min_price, max_price
 
         for ix in range(min_ix, max_ix + 1):
-            bar = self._manager.get_bar(ix)
-            if not bar:
+            bounds = self._get_drawn_iv_bounds(ix)
+            if bounds is None:
                 continue
-
-            daily_iv = self._get_atm_iv_daily(ix)
-            if daily_iv > 0:
-                base_price = bar.pre_close if bar.pre_close > 0 else bar.open_price
-                upper_price = base_price * (1 + daily_iv * 0.5)
-                lower_price = base_price * (1 - daily_iv * 0.5)
-                min_price = min(min_price, lower_price)
-                max_price = max(max_price, upper_price)
+            lower_price, upper_price = bounds
+            min_price = min(min_price, lower_price)
+            max_price = max(max_price, upper_price)
 
         return min_price, max_price
 

@@ -162,6 +162,27 @@ def get_digits(value: float) -> int:
         return 0
 
 
+INTERVAL_WINDOW_MAP: dict[Interval, int] = {
+    Interval.MINUTE: 1,
+    Interval.MINUTE3: 3,
+    Interval.MINUTE5: 5,
+    Interval.MINUTE6: 6,
+    Interval.MINUTE10: 10,
+    Interval.MINUTE12: 12,
+    Interval.MINUTE15: 15,
+    Interval.MINUTE20: 20,
+    Interval.MINUTE30: 30,
+}
+
+
+INTERVAL_HOUR_WINDOW_MAP: dict[Interval, int] = {
+    Interval.HOUR: 1,
+    Interval.HOUR2: 2,
+    Interval.HOUR4: 4,
+    Interval.HOUR8: 8,
+}
+
+
 class BarGenerator:
     """
     For:
@@ -186,10 +207,15 @@ class BarGenerator:
         self.on_bar: Callable = on_bar
 
         self.interval: Interval = interval
-        self.interval_count: int = 0
 
-        self.hour_bar: BarData | None = None
         self.daily_bar: BarData | None = None
+
+        # Auto-derive window from interval when not explicitly set
+        if window == 0:
+            if interval in INTERVAL_WINDOW_MAP:
+                window = INTERVAL_WINDOW_MAP[interval]
+            elif interval in INTERVAL_HOUR_WINDOW_MAP:
+                window = INTERVAL_HOUR_WINDOW_MAP[interval]
 
         self.window: int = window
         self.window_bar: BarData | None = None
@@ -334,9 +360,9 @@ class BarGenerator:
         """
         Update 1 minute bar into generator
         """
-        if self.interval == Interval.MINUTE:
+        if self.interval in INTERVAL_WINDOW_MAP:
             self.update_bar_minute_window(bar)
-        elif self.interval == Interval.HOUR:
+        elif self.interval in INTERVAL_HOUR_WINDOW_MAP:
             self.update_bar_hour_window(bar)
         else:
             self.update_bar_daily_window(bar)
@@ -400,20 +426,7 @@ class BarGenerator:
         # self.window_bar.volume += bar.volume
         # self.window_bar.turnover += bar.turnover
         self.window_bar.open_interest = bar.open_interest
-        self.window_bar.eris_p_strike = bar.eris_p_strike
-        self.window_bar.eris_p_iv = bar.eris_p_iv
-        self.window_bar.eris_p_delta = bar.eris_p_delta
-        self.window_bar.eris_c_strike = bar.eris_c_strike
-        self.window_bar.eris_c_iv = bar.eris_c_iv
-        self.window_bar.eris_c_delta = bar.eris_c_delta
-        self.window_bar.delta002_p_strike = bar.delta002_p_strike
-        self.window_bar.delta002_p_iv = bar.delta002_p_iv
-        self.window_bar.delta002_p_delta = bar.delta002_p_delta
-        self.window_bar.delta002_c_strike = bar.delta002_c_strike
-        self.window_bar.delta002_c_iv = bar.delta002_c_iv
-        self.window_bar.delta002_c_delta = bar.delta002_c_delta
-        self.window_bar.atm_iv = bar.atm_iv
-        self.window_bar.n225_vi = bar.n225_vi
+        self._propagate_option_fields(self.window_bar, bar)
 
         if self.last_bar:
             volume_change: float = bar.volume - self.last_bar.volume
@@ -431,125 +444,64 @@ class BarGenerator:
 
     def update_bar_hour_window(self, bar: BarData) -> None:
         """"""
-        # If not inited, create window bar object
-        if not self.hour_bar:
-            dt: datetime = bar.datetime.replace(minute=0, second=0, microsecond=0)
-            self.hour_bar = BarData(
-                symbol=bar.symbol,
-                exchange=bar.exchange,
-                datetime=dt,
-                gateway_name=bar.gateway_name,
-                open_price=bar.open_price,
-                high_price=bar.high_price,
-                low_price=bar.low_price,
-                close_price=bar.close_price,
-                pre_close=bar.pre_close,
-                volume=bar.volume,
-                turnover=bar.turnover,
-                open_interest=bar.open_interest
-            )
-            return
+        bucket_hour: int = bar.datetime.hour - bar.datetime.hour % self.window
+        bucket_dt: datetime = bar.datetime.replace(
+            hour=bucket_hour, minute=0, second=0, microsecond=0
+        )
 
-        finished_bar: BarData | None = None
-
-        # If minute is 59, update minute bar into window bar and push
-        if bar.datetime.minute == 59:
-            self.hour_bar.high_price = max(
-                self.hour_bar.high_price,
-                bar.high_price
-            )
-            self.hour_bar.low_price = min(
-                self.hour_bar.low_price,
-                bar.low_price
-            )
-
-            self.hour_bar.close_price = bar.close_price
-            self.hour_bar.volume += bar.volume
-            self.hour_bar.turnover += bar.turnover
-            self.hour_bar.open_interest = bar.open_interest
-
-            finished_bar = self.hour_bar
-            self.hour_bar = None
-
-        # If minute bar of new hour, then push existing window bar
-        elif bar.datetime.hour != self.hour_bar.datetime.hour:
-            finished_bar = self.hour_bar
-
-            dt = bar.datetime.replace(minute=0, second=0, microsecond=0)
-            self.hour_bar = BarData(
-                symbol=bar.symbol,
-                exchange=bar.exchange,
-                datetime=dt,
-                gateway_name=bar.gateway_name,
-                open_price=bar.open_price,
-                high_price=bar.high_price,
-                low_price=bar.low_price,
-                close_price=bar.close_price,
-                pre_close=bar.pre_close,
-                volume=bar.volume,
-                turnover=bar.turnover,
-                open_interest=bar.open_interest
-            )
-        # Otherwise only update minute bar
-        else:
-            self.hour_bar.high_price = max(
-                self.hour_bar.high_price,
-                bar.high_price
-            )
-            self.hour_bar.low_price = min(
-                self.hour_bar.low_price,
-                bar.low_price
-            )
-
-            self.hour_bar.close_price = bar.close_price
-            self.hour_bar.volume += bar.volume
-            self.hour_bar.turnover += bar.turnover
-            self.hour_bar.open_interest = bar.open_interest
-
-        # Push finished window bar
-        if finished_bar:
-            self.on_hour_bar(finished_bar)
-
-    def on_hour_bar(self, bar: BarData) -> None:
-        """"""
-        if self.window == 1:
+        new_window: bool = False
+        if self.window_bar is None:
+            new_window = True
+        elif self.window_bar.datetime != bucket_dt:
+            # Push the completed window before starting a new one
             if self.on_window_bar:
-                self.on_window_bar(bar)
-        else:
-            if not self.window_bar:
-                self.window_bar = BarData(
-                    symbol=bar.symbol,
-                    exchange=bar.exchange,
-                    datetime=bar.datetime,
-                    gateway_name=bar.gateway_name,
-                    open_price=bar.open_price,
-                    high_price=bar.high_price,
-                    low_price=bar.low_price,
-                    pre_close=bar.pre_close
-                )
-            else:
-                self.window_bar.high_price = max(
-                    self.window_bar.high_price,
-                    bar.high_price
-                )
-                self.window_bar.low_price = min(
-                    self.window_bar.low_price,
-                    bar.low_price
-                )
+                self.on_window_bar(self.window_bar)
+            new_window = True
 
-            self.window_bar.close_price = bar.close_price
+        if new_window:
+            self.window_bar = BarData(
+                symbol=bar.symbol,
+                exchange=bar.exchange,
+                datetime=bucket_dt,
+                gateway_name=bar.gateway_name,
+                open_price=bar.open_price,
+                high_price=bar.high_price,
+                low_price=bar.low_price,
+                pre_close=bar.pre_close,
+                volume=bar.volume,
+                turnover=bar.turnover,
+            )
+        else:
+            self.window_bar.high_price = max(
+                self.window_bar.high_price, bar.high_price
+            )
+            self.window_bar.low_price = min(
+                self.window_bar.low_price, bar.low_price
+            )
             self.window_bar.volume += bar.volume
             self.window_bar.turnover += bar.turnover
-            self.window_bar.open_interest = bar.open_interest
 
-            self.interval_count += 1
-            if not self.interval_count % self.window:
-                self.interval_count = 0
+        self.window_bar.close_price = bar.close_price
+        self.window_bar.open_interest = bar.open_interest
+        self._propagate_option_fields(self.window_bar, bar)
 
-                if self.on_window_bar:
-                    self.on_window_bar(self.window_bar)
-
-                self.window_bar = None
+    @staticmethod
+    def _propagate_option_fields(dst: BarData, src: BarData) -> None:
+        """Copy option/IV fields (last-value-wins) from src onto dst."""
+        dst.eris_p_strike = src.eris_p_strike
+        dst.eris_p_iv = src.eris_p_iv
+        dst.eris_p_delta = src.eris_p_delta
+        dst.eris_c_strike = src.eris_c_strike
+        dst.eris_c_iv = src.eris_c_iv
+        dst.eris_c_delta = src.eris_c_delta
+        dst.delta002_p_strike = src.delta002_p_strike
+        dst.delta002_p_iv = src.delta002_p_iv
+        dst.delta002_p_delta = src.delta002_p_delta
+        dst.delta002_c_strike = src.delta002_c_strike
+        dst.delta002_c_iv = src.delta002_c_iv
+        dst.delta002_c_delta = src.delta002_c_delta
+        dst.atm_iv = src.atm_iv
+        dst.n225_vi = src.n225_vi
 
     def update_bar_daily_window(self, bar: BarData) -> None:
         """"""
@@ -581,6 +533,10 @@ class BarGenerator:
         self.daily_bar.volume += bar.volume
         self.daily_bar.turnover += bar.turnover
         self.daily_bar.open_interest = bar.open_interest
+        self._propagate_option_fields(self.daily_bar, bar)
+
+        # Expose the in-progress daily bar to chartwizard via window_bar
+        self.window_bar = self.daily_bar
 
         # Check if daily bar completed
         if bar.datetime.time() == self.daily_end:
@@ -595,6 +551,7 @@ class BarGenerator:
                 self.on_window_bar(self.daily_bar)
 
             self.daily_bar = None
+            self.window_bar = None
 
     def generate(self) -> BarData | None:
         """
