@@ -180,6 +180,7 @@ INTERVAL_HOUR_WINDOW_MAP: dict[Interval, int] = {
     Interval.HOUR2: 2,
     Interval.HOUR4: 4,
     Interval.HOUR8: 8,
+    Interval.HOUR12: 12,
 }
 
 

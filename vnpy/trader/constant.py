@@ -217,6 +217,7 @@ class Interval(Enum):
     HOUR2 = "2h"
     HOUR4 = "4h"
     HOUR8 = "8h"
+    HOUR12 = "12h"
     DAILY = "d"
     WEEKLY = "w"
     TICK = "tick"
