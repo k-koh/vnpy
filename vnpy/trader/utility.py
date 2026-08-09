@@ -225,6 +225,11 @@ class BarGenerator:
         self.last_tick: TickData | None = None
         self.last_bar: BarData = None
 
+        # Max tick-time gap (s) for a reliable cumulative-volume baseline. A
+        # larger gap means a session boundary / app restart / market re-open,
+        # so the volume/turnover delta baseline is rebased instead of dumped.
+        self.max_tick_gap: int = 600
+
         self.daily_end: time | None = daily_end
         if self.interval == Interval.DAILY and not self.daily_end:
             raise RuntimeError(_("合成日K线必须传入每日收盘时间"))
@@ -280,11 +285,21 @@ class BarGenerator:
             self.bar.datetime = tick.datetime
 
         if self.last_tick and self.bar:
-            volume_change: float = tick.volume - self.last_tick.volume
-            self.bar.volume += max(volume_change, 0)
-
-            turnover_change: float = tick.turnover - self.last_tick.turnover
-            self.bar.turnover += max(turnover_change, 0)
+            # tick.volume/turnover are the exchange's CUMULATIVE session
+            # values → accumulate the per-bar delta. Guard against dumping the
+            # whole cumulative into one bar when the baseline is unreliable:
+            #   * a large tick-time gap (session boundary / app just started /
+            #     market re-open at 8:45 after the closed period), or
+            #   * a zero baseline (pre-open snapshot, or a spurious 0 reported
+            #     at session open).
+            # In those cases skip the delta and just rebase last_tick below;
+            # max(..., 0) still handles ordinary intra-session resets.
+            gap: float = (tick.datetime - self.last_tick.datetime).total_seconds()
+            reliable: bool = 0 <= gap <= self.max_tick_gap
+            if reliable and self.last_tick.volume > 0:
+                self.bar.volume += max(tick.volume - self.last_tick.volume, 0)
+            if reliable and self.last_tick.turnover > 0:
+                self.bar.turnover += max(tick.turnover - self.last_tick.turnover, 0)
 
         self.last_tick = tick
 
@@ -472,6 +487,7 @@ class BarGenerator:
                 volume=bar.volume,
                 turnover=bar.turnover,
             )
+            self.last_bar = None
         else:
             self.window_bar.high_price = max(
                 self.window_bar.high_price, bar.high_price
@@ -479,12 +495,20 @@ class BarGenerator:
             self.window_bar.low_price = min(
                 self.window_bar.low_price, bar.low_price
             )
-            self.window_bar.volume += bar.volume
-            self.window_bar.turnover += bar.turnover
 
         self.window_bar.close_price = bar.close_price
         self.window_bar.open_interest = bar.open_interest
         self._propagate_option_fields(self.window_bar, bar)
+
+        # Accumulate volume/turnover by delta, not by the whole bar: this method
+        # is called per-tick with the cumulative in-progress 1-minute bar, so
+        # adding bar.volume every call would explode. Mirror update_bar_minute_window.
+        if self.last_bar:
+            volume_change: float = bar.volume - self.last_bar.volume
+            self.window_bar.volume += max(volume_change, 0)
+            turnover_change: float = bar.turnover - self.last_bar.turnover
+            self.window_bar.turnover += max(turnover_change, 0)
+        self.last_bar = bar
 
     @staticmethod
     def _propagate_option_fields(dst: BarData, src: BarData) -> None:
@@ -516,8 +540,11 @@ class BarGenerator:
                 open_price=bar.open_price,
                 high_price=bar.high_price,
                 low_price=bar.low_price,
-                pre_close=bar.pre_close
+                pre_close=bar.pre_close,
+                volume=bar.volume,
+                turnover=bar.turnover,
             )
+            self.last_bar = None
         # Otherwise, update high/low price into daily bar
         else:
             self.daily_bar.high_price = max(
@@ -529,12 +556,19 @@ class BarGenerator:
                 bar.low_price
             )
 
-        # Update close price/volume/turnover into daily bar
+        # Update close price into daily bar
         self.daily_bar.close_price = bar.close_price
-        self.daily_bar.volume += bar.volume
-        self.daily_bar.turnover += bar.turnover
         self.daily_bar.open_interest = bar.open_interest
         self._propagate_option_fields(self.daily_bar, bar)
+
+        # Accumulate volume/turnover by delta (per-tick cumulative bar), not by
+        # the whole bar — otherwise volume explodes. Mirror the minute/hour paths.
+        if self.last_bar:
+            volume_change: float = bar.volume - self.last_bar.volume
+            self.daily_bar.volume += max(volume_change, 0)
+            turnover_change: float = bar.turnover - self.last_bar.turnover
+            self.daily_bar.turnover += max(turnover_change, 0)
+        self.last_bar = bar
 
         # Expose the in-progress daily bar to chartwizard via window_bar
         self.window_bar = self.daily_bar
