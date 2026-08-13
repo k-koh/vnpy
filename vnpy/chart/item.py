@@ -216,6 +216,20 @@ class CandleItem(ChartItem):
             color=DOWN_COLOR, width=PEN_WIDTH * 3
         )
 
+        # Reusable pool of σ-level labels (±0.5σ, ±1.0σ …) drawn at the right
+        # edge next to the latest bar's ATM-IV band lines.
+        self._sigma_labels: list[pg.TextItem] = []
+
+        # Last-price right-edge price tag (toggled from the toolbar; created
+        # lazily once we have a ViewBox).
+        self.show_last_price: bool = False
+        self._last_price_label: "pg.TextItem | None" = None
+
+    def set_show_last_price(self, show: bool) -> None:
+        """Show/hide the latest-close right-edge price tag."""
+        self.show_last_price = show
+        self.update()
+
     def _get_atm_iv_daily(self, ix: int) -> float:
         """"""
         if ix in self._atm_iv_daily:
@@ -466,6 +480,120 @@ class CandleItem(ChartItem):
         # Finish
         painter.end()
         return candle_picture
+
+    def paint(self, painter: QtGui.QPainter, opt, w) -> None:  # type: ignore[override]
+        """Paint the cached bar pictures, then overlay σ-level labels on the
+        latest bar's ATM-IV band lines."""
+        super().paint(painter, opt, w)
+        self._update_sigma_labels()
+        self._update_last_price(painter)
+
+    def _update_last_price(self, painter: QtGui.QPainter) -> None:
+        """Draw a horizontal line at the latest close plus a large price tag at
+        the right edge. The line stops short of the label so the two never
+        overlay each other (a gap is left where the label sits)."""
+        vb = self.getViewBox()
+        count: int = self._manager.get_count()
+        bar = self._manager.get_bar(count - 1) if count else None
+        if vb is None or bar is None or not self.show_last_price:
+            if self._last_price_label is not None:
+                self._last_price_label.hide()
+            return
+
+        price: float = bar.close_price
+        color = UP_COLOR if bar.close_price >= bar.open_price else DOWN_COLOR
+
+        # Price tag pinned to the right edge of the current view.
+        if self._last_price_label is None:
+            self._last_price_label = pg.TextItem(anchor=(1.0, 0.5))
+            self._last_price_label.setFont(QtGui.QFont("Arial", 13))
+            vb.addItem(self._last_price_label, ignoreBounds=True)
+        label = self._last_price_label
+        (x0v, x1v), _ = vb.viewRange()
+        label.setColor(color)
+        label.setText(f"{price:,.0f}")
+        label.setPos(x1v, price)
+        label.show()
+
+        # Horizontal line from the left edge up to just before the label, so
+        # the line and the price tag don't overlap.
+        view_w: float = vb.width()
+        if view_w <= 0 or x1v <= x0v:
+            return
+        data_per_px: float = (x1v - x0v) / view_w
+        label_px: float = label.boundingRect().width()
+        gap_px: float = 10.0                      # breathing room before the tag
+        stop_x: float = x1v - (label_px + gap_px) * data_per_px
+        if stop_x <= x0v:
+            return
+        pen = pg.mkPen(color=color, width=1)
+        pen.setStyle(QtCore.Qt.PenStyle.DashLine)
+        pen.setCosmetic(True)                     # constant 1px width at any zoom
+        painter.setPen(pen)
+        painter.drawLine(
+            QtCore.QPointF(x0v, price),
+            QtCore.QPointF(stop_x, price),
+        )
+
+    def _update_sigma_labels(self) -> None:
+        """Place ±0.5σ/±1.0σ… labels next to the latest bar's drawn ATM-IV
+        band lines. Only the bands actually drawn for the latest bar (base,
+        ±0.5σ, and the one-sided ladder up to the close) get a label; when
+        there are no band lines (no ATM IV) all labels are hidden."""
+        vb = self.getViewBox()
+        count: int = self._manager.get_count()
+        if vb is None or count == 0:
+            for lbl in self._sigma_labels:
+                lbl.hide()
+            return
+
+        ix: int = count - 1
+        bar = self._manager.get_bar(ix)
+        daily_iv: float = self._get_atm_iv_daily(ix)
+        if bar is None or daily_iv <= 0:
+            for lbl in self._sigma_labels:
+                lbl.hide()
+            return
+
+        base: float = bar.pre_close if bar.pre_close > 0 else bar.open_price
+        close: float = bar.close_price
+
+        # (text, price, color) — mirror the ladder drawn in _draw_bar_picture:
+        # base + ±0.5σ always, then higher levels only on the side the close
+        # has broken through, up to the band just beyond the close.
+        entries: list[tuple[str, float, tuple]] = [
+            ("0σ", base, YELLOW_COLOR),
+            ("+0.5σ", base * (1 + daily_iv * 0.5), UP_COLOR),
+            ("-0.5σ", base * (1 - daily_iv * 0.5), DOWN_COLOR),
+        ]
+        for mult in (1.0, 1.5, 2.0, 2.5, 3.0):
+            if close > base * (1 + daily_iv * (mult - 0.5)):
+                entries.append((f"+{mult:.1f}σ", base * (1 + daily_iv * mult), UP_COLOR))
+            else:
+                break
+        for mult in (1.0, 1.5, 2.0, 2.5, 3.0):
+            if close < base * (1 - daily_iv * (mult - 0.5)):
+                entries.append((f"-{mult:.1f}σ", base * (1 - daily_iv * mult), DOWN_COLOR))
+            else:
+                break
+
+        while len(self._sigma_labels) < len(entries):
+            lbl = pg.TextItem(anchor=(0.0, 0.5))
+            # Explicit family: the default/empty-family font lacks the Greek
+            # σ glyph and silently drops it (label showed "+0.5", not "+0.5σ").
+            lbl.setFont(QtGui.QFont("Arial", 8))
+            vb.addItem(lbl, ignoreBounds=True)
+            self._sigma_labels.append(lbl)
+
+        for i, lbl in enumerate(self._sigma_labels):
+            if i >= len(entries):
+                lbl.hide()
+                continue
+            text, price, color = entries[i]
+            lbl.setColor(color)
+            lbl.setText(text)
+            lbl.setPos(ix + 0.6, price)
+            lbl.show()
 
     def boundingRect(self) -> QtCore.QRectF:
         """"""

@@ -350,8 +350,23 @@ class ChartCursor(QtCore.QObject):
         self._y: float = 0
         self._plot_name: str = ""
 
+        # When False the cross-hair lines and cursor labels/info are hidden and
+        # not re-shown on mouse move / key move (toggled from the toolbar).
+        self._enabled: bool = True
+
         self._init_ui()
         self._connect_signal()
+
+    def set_enabled(self, enabled: bool) -> None:
+        """Show/hide the cursor cross-hair lines and labels/info boxes."""
+        self._enabled = enabled
+        if not enabled:
+            for line in list(self._v_lines.values()) + list(self._h_lines.values()):
+                line.hide()
+            for label in list(self._y_labels.values()) + [self._x_label]:
+                label.hide()
+            for info in self._infos.values():
+                info.hide()
 
     def _init_ui(self) -> None:
         """"""
@@ -454,6 +469,8 @@ class ChartCursor(QtCore.QObject):
 
     def _update_line(self) -> None:
         """"""
+        if not self._enabled:
+            return
         for v_line in self._v_lines.values():
             v_line.setPos(self._x)
             v_line.show()
@@ -467,6 +484,8 @@ class ChartCursor(QtCore.QObject):
 
     def _update_label(self) -> None:
         """"""
+        if not self._enabled:
+            return
         bottom_plot: pg.PlotItem = list(self._plots.values())[-1]
         axis_width = bottom_plot.getAxis("right").width()
         axis_height = bottom_plot.getAxis("bottom").height()
@@ -518,6 +537,8 @@ class ChartCursor(QtCore.QObject):
 
     def update_info(self) -> None:
         """"""
+        if not self._enabled:
+            return
         buf: dict = {}
 
         for item, plot in self._item_plot_map.items():
