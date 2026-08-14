@@ -101,9 +101,14 @@ class BarManager:
             min_ix = 0
             max_ix = len(self._bars) - 1
         else:
-            min_ix = to_int(min_ix)
-            max_ix = to_int(max_ix)
-            max_ix = min(max_ix, self.get_count())
+            # Clamp both indices into [0, count-1] and order them, so scrolling
+            # into the right-hand margin (past the last bar) can't produce an
+            # empty slice → IndexError.
+            last: int = self.get_count() - 1
+            min_ix = max(0, min(to_int(min_ix), last))
+            max_ix = max(0, min(to_int(max_ix), last))
+            if min_ix > max_ix:
+                min_ix, max_ix = max_ix, min_ix
 
         buf: tuple[float, float] | None = self._price_ranges.get((min_ix, max_ix), None)
         if buf:
@@ -132,9 +137,13 @@ class BarManager:
             min_ix = 0
             max_ix = len(self._bars) - 1
         else:
-            min_ix = to_int(min_ix)
-            max_ix = to_int(max_ix)
-            max_ix = min(max_ix, self.get_count())
+            # Clamp both indices into [0, count-1] and order them (see
+            # get_price_range) so an out-of-range slice can't crash.
+            last: int = self.get_count() - 1
+            min_ix = max(0, min(to_int(min_ix), last))
+            max_ix = max(0, min(to_int(max_ix), last))
+            if min_ix > max_ix:
+                min_ix, max_ix = max_ix, min_ix
 
         buf: tuple[float, float] | None = self._volume_ranges.get((min_ix, max_ix), None)
         if buf:
