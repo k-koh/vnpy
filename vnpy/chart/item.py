@@ -225,9 +225,21 @@ class CandleItem(ChartItem):
         self.show_last_price: bool = False
         self._last_price_label: "pg.TextItem | None" = None
 
+        # Round-number (every 500) horizontal grid lines (toolbar toggle).
+        self.show_round_lines: bool = False
+        self.round_step: int = 500
+        self._round_pen: QtGui.QPen = pg.mkPen(color=(90, 90, 90), width=1)
+        self._round_pen.setStyle(QtCore.Qt.PenStyle.DotLine)
+        self._round_pen.setCosmetic(True)
+
     def set_show_last_price(self, show: bool) -> None:
         """Show/hide the latest-close right-edge price tag."""
         self.show_last_price = show
+        self.update()
+
+    def set_show_round_lines(self, show: bool) -> None:
+        """Show/hide the every-500 round-number horizontal lines."""
+        self.show_round_lines = show
         self.update()
 
     def _get_atm_iv_daily(self, ix: int) -> float:
@@ -484,9 +496,29 @@ class CandleItem(ChartItem):
     def paint(self, painter: QtGui.QPainter, opt, w) -> None:  # type: ignore[override]
         """Paint the cached bar pictures, then overlay σ-level labels on the
         latest bar's ATM-IV band lines."""
+        self._draw_round_lines(painter)     # behind the candles
         super().paint(painter, opt, w)
         self._update_sigma_labels()
         self._update_last_price(painter)
+
+    def _draw_round_lines(self, painter: QtGui.QPainter) -> None:
+        """Draw faint dark-grey horizontal lines at every round_step (500) yen
+        across the visible range."""
+        if not self.show_round_lines:
+            return
+        vb = self.getViewBox()
+        if vb is None:
+            return
+        (x0v, x1v), (y0v, y1v) = vb.viewRange()
+        if y1v <= y0v or x1v <= x0v:
+            return
+        step: int = self.round_step
+        painter.setPen(self._round_pen)
+        start: int = int((y0v // step + 1) * step) if y0v % step else int(y0v)
+        y: float = float(start)
+        while y <= y1v:
+            painter.drawLine(QtCore.QPointF(x0v, y), QtCore.QPointF(x1v, y))
+            y += step
 
     def _update_last_price(self, painter: QtGui.QPainter) -> None:
         """Draw a horizontal line at the latest close plus a large price tag at
@@ -547,9 +579,23 @@ class CandleItem(ChartItem):
                 lbl.hide()
             return
 
-        ix: int = count - 1
-        bar = self._manager.get_bar(ix)
-        daily_iv: float = self._get_atm_iv_daily(ix)
+        last_ix: int = count - 1
+        # The first bar after a session open (17:00) hasn't had its ATM IV
+        # computed yet, so fall back to the most recent bar that has a valid
+        # one — the labels still show, positioned at the latest bar.
+        ref_ix: int = last_ix
+        daily_iv: float = self._get_atm_iv_daily(ref_ix)
+        if daily_iv <= 0:
+            scan: int = last_ix - 1
+            limit: int = max(0, last_ix - 500)
+            while scan >= limit:
+                div: float = self._get_atm_iv_daily(scan)
+                if div > 0:
+                    ref_ix, daily_iv = scan, div
+                    break
+                scan -= 1
+
+        bar = self._manager.get_bar(ref_ix)
         if bar is None or daily_iv <= 0:
             for lbl in self._sigma_labels:
                 lbl.hide()
@@ -591,8 +637,9 @@ class CandleItem(ChartItem):
                 continue
             text, price, color = entries[i]
             lbl.setColor(color)
-            lbl.setText(text)
-            lbl.setPos(ix + 0.6, price)
+            # Append the futures price at that σ level (like トレンドライン labels).
+            lbl.setText(f"{text}  {price:,.0f}")
+            lbl.setPos(last_ix + 0.6, price)
             lbl.show()
 
     def boundingRect(self) -> QtCore.QRectF:
