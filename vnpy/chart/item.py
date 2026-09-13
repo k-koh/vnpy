@@ -6,7 +6,7 @@ from vnpy.trader.ui import QtCore, QtGui, QtWidgets
 from vnpy.trader.object import BarData
 
 from .base import BLACK_COLOR, UP_COLOR, DOWN_COLOR, YELLOW_COLOR, GREY_COLOR, ORANGE_COLOR, MAGENTA_COLOR, PEN_WIDTH, \
-    BAR_WIDTH, IV_RANGE_WIDTH
+    BAR_WIDTH, IV_RANGE_WIDTH, WHITE_COLOR
 from .manager import BarManager
 
 
@@ -199,21 +199,22 @@ class CandleItem(ChartItem):
         )
         self._market_time_pen.setStyle(QtCore.Qt.DashLine)
 
-        # Vertical line at the start of each new (ISO) week. Magenta + solid so
-        # it stands out from the grey day/night lines and the red/cyan candles.
+        # Vertical line at the start of each new (ISO) week: solid white, so it
+        # reads against both the dark ground and the red/cyan candles (the grey
+        # day/night dividers are dashed and dimmer, so the two never confuse).
         self._week_line_pen: QtGui.QPen = pg.mkPen(
-            color=MAGENTA_COLOR,
+            color=WHITE_COLOR,
             width=PEN_WIDTH
         )
         self._week_line_pen.setStyle(QtCore.Qt.SolidLine)
 
-        # Wider pens used only for the candle shadow (ヒゲ), so the wick is
-        # clearly visible without thickening the candle body outline.
+        # Pens for the candle shadow (ヒゲ). Same width as the body outline,
+        # matching the エントリー判定 chart.
         self._up_wick_pen: QtGui.QPen = pg.mkPen(
-            color=UP_COLOR, width=PEN_WIDTH * 3
+            color=UP_COLOR, width=PEN_WIDTH
         )
         self._down_wick_pen: QtGui.QPen = pg.mkPen(
-            color=DOWN_COLOR, width=PEN_WIDTH * 3
+            color=DOWN_COLOR, width=PEN_WIDTH
         )
 
         # Reusable pool of σ-level labels (±0.5σ, ±1.0σ …) drawn at the right
@@ -334,17 +335,18 @@ class CandleItem(ChartItem):
                     QtCore.QPointF(ix, 999999)
                 )
 
-        # Set painter color
+        # Set painter color. Same convention as the エントリー判定 chart:
+        # 陽線 = filled UP_COLOR, 陰線 = hollow DOWN_COLOR outline.
         if bar.close_price >= bar.open_price:
             body_pen = self._up_pen
             wick_pen = self._up_wick_pen
-            painter.setBrush(self._black_brush)
+            painter.setBrush(self._up_brush)
         else:
             body_pen = self._down_pen
             wick_pen = self._down_wick_pen
-            painter.setBrush(self._down_brush)
+            painter.setBrush(self._black_brush)
 
-        # Draw candle shadow (ヒゲ) with the wider wick pen
+        # Draw candle shadow (ヒゲ)
         if bar.high_price > bar.low_price:
             painter.setPen(wick_pen)
             painter.drawLine(
