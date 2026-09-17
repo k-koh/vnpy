@@ -317,6 +317,7 @@ class BarGenerator:
         delta002_c_strike = None
         delta002_c_delta = None
         atm_iv = None
+        atm_level_iv = None
         n225_vi = tick.n225_vi
 
         option_engine = None
@@ -340,6 +341,7 @@ class BarGenerator:
 
                     if chain_data:
                         atm_iv = chain_data.atm_impv
+                        atm_level_iv = chain_data.atm_level_iv
                         eris_p_iv = chain_data.eris_p_iv
                         eris_p_strike = chain_data.eris_p_strike
                         eris_p_delta = chain_data.eris_p_delta
@@ -368,6 +370,7 @@ class BarGenerator:
         self.bar.delta002_c_strike = delta002_c_strike
         self.bar.delta002_c_delta = delta002_c_delta
         self.bar.atm_iv = atm_iv
+        self.bar.atm_level_iv = atm_level_iv
         self.bar.n225_vi = n225_vi
 
         return self.bar, new_minute
@@ -423,6 +426,7 @@ class BarGenerator:
                 delta002_c_iv=bar.delta002_c_iv,
                 delta002_c_delta=bar.delta002_c_delta,
                 atm_iv=bar.atm_iv,
+                atm_level_iv=bar.atm_level_iv,
                 n225_vi=bar.n225_vi
             )
             self.last_bar = None
@@ -526,6 +530,7 @@ class BarGenerator:
         dst.delta002_c_iv = src.delta002_c_iv
         dst.delta002_c_delta = src.delta002_c_delta
         dst.atm_iv = src.atm_iv
+        dst.atm_level_iv = src.atm_level_iv
         dst.n225_vi = src.n225_vi
 
     def update_bar_daily_window(self, bar: BarData) -> None:

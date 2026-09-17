@@ -120,6 +120,10 @@ class BarData(BaseData):
     delta002_c_iv: float = 0
     delta002_c_delta: float = 0
     atm_iv: float = 0
+    # ATM の「面の上下だけのIV」: 今日のIVを前日と同じモネネスで測り直した値。
+    # 前日同一行使価格のIVを引くと、滑り（先物が動いてスマイル上を滑っただけ
+    # の見かけの変化）を除いた、ボラ水準そのものの動きになる。
+    atm_level_iv: float = 0
     n225_vi: float = 0
     # Added fields for option
     strike: int = 0
