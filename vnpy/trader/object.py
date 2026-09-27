@@ -78,6 +78,9 @@ class TickData(BaseData):
     ask_volume_5: float = 0
 
     n225_vi: float = 0
+    # 本物の約定値（kabus の CurrentPrice）。last_price は板の加重midで
+    # 上書きされるので、約定がAsk側かBid側かを見るにはこちらが要る。
+    trade_price: float = 0
 
     localtime: Datetime | None = None
 
@@ -124,6 +127,14 @@ class BarData(BaseData):
     # 前日同一行使価格のIVを引くと、滑り（先物が動いてスマイル上を滑っただけ
     # の見かけの変化）を除いた、ボラ水準そのものの動きになる。
     atm_level_iv: float = 0
+    # 約定枚数を買い／売りに分けたもの（セッション累計）。ATM・Δ0.1 Put・
+    # Δ0.1 Call の3系列で、行使価格が入れ替わっても連続する。
+    atm_buy_volume: float = 0
+    atm_sell_volume: float = 0
+    eris_p_buy_volume: float = 0
+    eris_p_sell_volume: float = 0
+    eris_c_buy_volume: float = 0
+    eris_c_sell_volume: float = 0
     n225_vi: float = 0
     # Added fields for option
     strike: int = 0

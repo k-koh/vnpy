@@ -118,9 +118,21 @@ class ChartItem(pg.GraphicsObject):
         """
         rect: QtCore.QRectF = opt.exposedRect       # type: ignore
 
-        min_ix: int = int(rect.left())
-        max_ix: int = int(rect.right())
-        max_ix = min(max_ix, len(self._bar_picutures))
+        # Qt は「今 dirty になった帯」だけを exposedRect で渡してくることが
+        # ある（カーソル線が動いた、ラベルを置き直した等）。キャッシュの絵は
+        # ここで決めた範囲そのままなので、その帯をそのまま使うと、次に全面
+        # 再描画が来るまで残りが消えたままになる。見えている範囲全体で作る。
+        # クリップは Qt がやるので描き過ぎの害は無く、カーソルだけが動いた
+        # ときは範囲が変わらないので再構築すら起きない。
+        view_box = self.getViewBox()
+        if view_box is not None:
+            (view_left, view_right), _ = view_box.viewRange()
+            min_ix = max(0, int(view_left))
+            max_ix = min(len(self._bar_picutures), int(view_right) + 2)
+        else:
+            min_ix = int(rect.left())
+            max_ix = min(int(rect.right()), len(self._bar_picutures))
+        min_ix = min(min_ix, max_ix)
 
         rect_area: tuple = (min_ix, max_ix)
         if (

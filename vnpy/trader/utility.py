@@ -318,6 +318,9 @@ class BarGenerator:
         delta002_c_delta = None
         atm_iv = None
         atm_level_iv = None
+        atm_buy_volume = atm_sell_volume = None
+        eris_p_buy_volume = eris_p_sell_volume = None
+        eris_c_buy_volume = eris_c_sell_volume = None
         n225_vi = tick.n225_vi
 
         option_engine = None
@@ -342,6 +345,12 @@ class BarGenerator:
                     if chain_data:
                         atm_iv = chain_data.atm_impv
                         atm_level_iv = chain_data.atm_level_iv
+                        atm_buy_volume = chain_data.atm_buy_volume
+                        atm_sell_volume = chain_data.atm_sell_volume
+                        eris_p_buy_volume = chain_data.eris_p_buy_volume
+                        eris_p_sell_volume = chain_data.eris_p_sell_volume
+                        eris_c_buy_volume = chain_data.eris_c_buy_volume
+                        eris_c_sell_volume = chain_data.eris_c_sell_volume
                         eris_p_iv = chain_data.eris_p_iv
                         eris_p_strike = chain_data.eris_p_strike
                         eris_p_delta = chain_data.eris_p_delta
@@ -371,6 +380,12 @@ class BarGenerator:
         self.bar.delta002_c_delta = delta002_c_delta
         self.bar.atm_iv = atm_iv
         self.bar.atm_level_iv = atm_level_iv
+        self.bar.atm_buy_volume = atm_buy_volume
+        self.bar.atm_sell_volume = atm_sell_volume
+        self.bar.eris_p_buy_volume = eris_p_buy_volume
+        self.bar.eris_p_sell_volume = eris_p_sell_volume
+        self.bar.eris_c_buy_volume = eris_c_buy_volume
+        self.bar.eris_c_sell_volume = eris_c_sell_volume
         self.bar.n225_vi = n225_vi
 
         return self.bar, new_minute
@@ -427,6 +442,12 @@ class BarGenerator:
                 delta002_c_delta=bar.delta002_c_delta,
                 atm_iv=bar.atm_iv,
                 atm_level_iv=bar.atm_level_iv,
+                atm_buy_volume=bar.atm_buy_volume,
+                atm_sell_volume=bar.atm_sell_volume,
+                eris_p_buy_volume=bar.eris_p_buy_volume,
+                eris_p_sell_volume=bar.eris_p_sell_volume,
+                eris_c_buy_volume=bar.eris_c_buy_volume,
+                eris_c_sell_volume=bar.eris_c_sell_volume,
                 n225_vi=bar.n225_vi
             )
             self.last_bar = None
@@ -531,6 +552,13 @@ class BarGenerator:
         dst.delta002_c_delta = src.delta002_c_delta
         dst.atm_iv = src.atm_iv
         dst.atm_level_iv = src.atm_level_iv
+        # 累計値なので窓バーは最後の値で足りる
+        dst.atm_buy_volume = src.atm_buy_volume
+        dst.atm_sell_volume = src.atm_sell_volume
+        dst.eris_p_buy_volume = src.eris_p_buy_volume
+        dst.eris_p_sell_volume = src.eris_p_sell_volume
+        dst.eris_c_buy_volume = src.eris_c_buy_volume
+        dst.eris_c_sell_volume = src.eris_c_sell_volume
         dst.n225_vi = src.n225_vi
 
     def update_bar_daily_window(self, bar: BarData) -> None:
