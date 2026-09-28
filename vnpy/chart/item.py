@@ -535,9 +535,13 @@ class CandleItem(ChartItem):
             y += step
 
     def _update_last_price(self, painter: QtGui.QPainter) -> None:
-        """Draw a horizontal line at the latest close plus a large price tag at
-        the right edge. The line stops short of the label so the two never
-        overlay each other (a gap is left where the label sits)."""
+        """Draw a horizontal line at the latest close, with a price tag on the
+        right axis (outside the plot) so it never covers the newest candles.
+
+        Same look as the エントリー判定 chart: a solid line in the candle's
+        colour across the whole view, and a filled tag of that colour with
+        black text sitting where the y-axis ticks are.
+        """
         vb = self.getViewBox()
         count: int = self._manager.get_count()
         bar = self._manager.get_bar(count - 1) if count else None
@@ -549,36 +553,42 @@ class CandleItem(ChartItem):
         price: float = bar.close_price
         color = UP_COLOR if bar.close_price >= bar.open_price else DOWN_COLOR
 
-        # Price tag pinned to the right edge of the current view.
+        # The tag is a child of the PlotItem, not of the ViewBox: the ViewBox
+        # clips its children to the plot area, and we want the tag outside it.
+        plot_item = vb.parentItem()
         if self._last_price_label is None:
-            self._last_price_label = pg.TextItem(anchor=(1.0, 0.5))
-            self._last_price_label.setFont(QtGui.QFont("Arial", 13))
-            vb.addItem(self._last_price_label, ignoreBounds=True)
+            label = pg.TextItem(anchor=(0.0, 0.5), color=BLACK_COLOR)
+            label.setFont(QtGui.QFont("Arial", 10))
+            if plot_item is not None:
+                label.setParentItem(plot_item)
+            else:
+                vb.addItem(label, ignoreBounds=True)
+            self._last_price_label = label
         label = self._last_price_label
-        (x0v, x1v), _ = vb.viewRange()
-        label.setColor(color)
-        label.setText(f"{price:,.0f}")
-        label.setPos(x1v, price)
-        label.show()
 
-        # Horizontal line from the left edge up to just before the label, so
-        # the line and the price tag don't overlap.
-        view_w: float = vb.width()
-        if view_w <= 0 or x1v <= x0v:
-            return
-        data_per_px: float = (x1v - x0v) / view_w
-        label_px: float = label.boundingRect().width()
-        gap_px: float = 10.0                      # breathing room before the tag
-        stop_x: float = x1v - (label_px + gap_px) * data_per_px
-        if stop_x <= x0v:
+        (x0v, x1v), (y0v, y1v) = vb.viewRange()
+        if not (y0v <= price <= y1v):
+            label.hide()                      # 現在値が表示範囲の外
+        else:
+            label.setText(f"{price:,.0f}")
+            label.fill = pg.mkBrush(color)    # 地色は足の色（塗りは paint 時に使われる）
+            if plot_item is not None:
+                scene_point = vb.mapViewToScene(QtCore.QPointF(x1v, price))
+                local = plot_item.mapFromScene(scene_point)
+                label.setPos(local.x() + 3, local.y())
+            else:
+                label.setPos(x1v, price)
+            label.show()
+
+        # 線は全幅の実線。タグは軸の外なので、途中で止める必要がない。
+        if x1v <= x0v:
             return
         pen = pg.mkPen(color=color, width=1)
-        pen.setStyle(QtCore.Qt.PenStyle.DashLine)
-        pen.setCosmetic(True)                     # constant 1px width at any zoom
+        pen.setCosmetic(True)                 # constant 1px width at any zoom
         painter.setPen(pen)
         painter.drawLine(
             QtCore.QPointF(x0v, price),
-            QtCore.QPointF(stop_x, price),
+            QtCore.QPointF(x1v, price),
         )
 
     def _update_sigma_labels(self) -> None:
