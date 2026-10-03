@@ -233,6 +233,9 @@ class CandleItem(ChartItem):
         # edge next to the latest bar's ATM-IV band lines.
         self._sigma_labels: list[pg.TextItem] = []
 
+        # 現在値が 0σ からいくつ離れているかのラベル。現在値の線の上に乗る。
+        self._now_sigma_label: "pg.TextItem | None" = None
+
         # Last-price right-edge price tag (toggled from the toolbar; created
         # lazily once we have a ViewBox).
         self.show_last_price: bool = False
@@ -599,8 +602,7 @@ class CandleItem(ChartItem):
         vb = self.getViewBox()
         count: int = self._manager.get_count()
         if vb is None or count == 0:
-            for lbl in self._sigma_labels:
-                lbl.hide()
+            self._hide_sigma_labels()
             return
 
         last_ix: int = count - 1
@@ -621,8 +623,7 @@ class CandleItem(ChartItem):
 
         bar = self._manager.get_bar(ref_ix)
         if bar is None or daily_iv <= 0:
-            for lbl in self._sigma_labels:
-                lbl.hide()
+            self._hide_sigma_labels()
             return
 
         base: float = bar.pre_close if bar.pre_close > 0 else bar.open_price
@@ -665,6 +666,45 @@ class CandleItem(ChartItem):
             lbl.setText(f"{text}  {price:,.0f}")
             lbl.setPos(last_ix + 0.6, price)
             lbl.show()
+
+        self._update_now_sigma_label(vb, last_ix, base, daily_iv)
+
+    def _hide_sigma_labels(self) -> None:
+        """σのラベルを全部隠す（現在σも含む）。"""
+        for lbl in self._sigma_labels:
+            lbl.hide()
+        if self._now_sigma_label is not None:
+            self._now_sigma_label.hide()
+
+    def _update_now_sigma_label(
+        self, vb, last_ix: int, base: float, daily_iv: float
+    ) -> None:
+        """現在値が 0σ（前日の引け）から何σ離れているかを出す。
+
+        はしごは0.5σ刻みの線しか無いので、その間にいるときに今どのあたりかが
+        読めない。現在値の線のすぐ上に置き、開始位置は他のσラベルと揃える。
+        """
+        last_bar = self._manager.get_bar(last_ix)
+        if last_bar is None or base <= 0 or daily_iv <= 0:
+            if self._now_sigma_label is not None:
+                self._now_sigma_label.hide()
+            return
+
+        close: float = last_bar.close_price
+        sigma: float = (close - base) / (base * daily_iv)
+
+        if self._now_sigma_label is None:
+            # anchor (0.0, 1.0): 左下が基準 → 文字は現在値の線の「上」に出る。
+            lbl = pg.TextItem(anchor=(0.0, 1.0))
+            lbl.setFont(QtGui.QFont("Arial", 8))
+            vb.addItem(lbl, ignoreBounds=True)
+            self._now_sigma_label = lbl
+
+        label = self._now_sigma_label
+        label.setColor(UP_COLOR if sigma >= 0 else DOWN_COLOR)
+        label.setText(f"{sigma:+.2f}σ")
+        label.setPos(last_ix + 0.6, close)
+        label.show()
 
     def boundingRect(self) -> QtCore.QRectF:
         """"""
