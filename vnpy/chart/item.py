@@ -744,50 +744,24 @@ class CandleItem(ChartItem):
         return min_price, max_price
 
     def get_info_text(self, ix: int) -> str:
-        """
-        Get information text to show by cursor.
+        """カーソルに出す情報。エントリー判定の先物チャートと同じ3行。
+
+            MM/DD HH:MM
+            先物 68,912
+            H 68,927  L 68,607
+
+        σの段はチャート上に線とラベルで出ているので、ここには並べない
+        （以前は U0.5/L0.5 … と6行も続いて、肝心の値段が読みにくかった）。
         """
         bar: BarData | None = self._manager.get_bar(ix)
+        if not bar:
+            return ""
 
-        if bar:
-            close = f"{bar.close_price:.0f}"
-            words: list = [
-                bar.datetime.strftime("%Y-%m-%d"),
-                bar.datetime.strftime("%H:%M"),
-                close
-            ]
-
-            daily_iv = self._get_atm_iv_daily(ix)
-            if daily_iv > 0:
-                base_price = bar.pre_close if bar.pre_close > 0 else bar.open_price
-                for mult in (0.5, 1.0, 1.5, 2.0, 2.5, 3.0):
-                    upper_price = base_price * (1 + daily_iv * mult)
-                    lower_price = base_price * (1 - daily_iv * mult)
-                    words.append(f"U{mult}: {upper_price:.0f} L{mult}: {lower_price:.0f}")
-            # words: list = [
-            #     "Date",
-            #     bar.datetime.strftime("%Y-%m-%d"),
-            #     "",
-            #     "Time",
-            #     bar.datetime.strftime("%H:%M"),
-            #     "",
-            #     "Open",
-            #     str(bar.open_price),
-            #     "",
-            #     "High",
-            #     str(bar.high_price),
-            #     "",
-            #     "Low",
-            #     str(bar.low_price),
-            #     "",
-            #     "Close",
-            #     str(bar.close_price)
-            # ]
-            text: str = "\n".join(words)
-        else:
-            text = ""
-
-        return text
+        return "\n".join([
+            bar.datetime.strftime("%m/%d %H:%M"),
+            f"先物 {bar.close_price:,.0f}",
+            f"H {bar.high_price:,.0f}  L {bar.low_price:,.0f}",
+        ])
 
     def clear_all(self) -> None:
         """

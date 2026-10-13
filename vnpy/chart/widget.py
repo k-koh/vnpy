@@ -382,7 +382,11 @@ class ChartCursor(QtCore.QObject):
         self._h_lines: dict[str, pg.InfiniteLine] = {}
         self._views: dict[str, pg.ViewBox] = {}
 
-        pen: QtGui.QPen = pg.mkPen(WHITE_COLOR)
+        # 十字線はエントリー判定と同じ細さ・色にする（純白の太線だと足や
+        # σ線より目立ってしまう）。#dddddd をアルファ 0.55 相当に落とした
+        # 色で、1pxの実線。
+        pen: QtGui.QPen = pg.mkPen(color=(221, 221, 221, 140), width=1)
+        pen.setCosmetic(True)       # 拡大しても1pxのまま
 
         for plot_name, plot in self._plots.items():
             v_line: pg.InfiniteLine = pg.InfiniteLine(angle=90, movable=False, pen=pen)
@@ -482,6 +486,24 @@ class ChartCursor(QtCore.QObject):
             else:
                 h_line.hide()
 
+    # カーソルのY値の書き方。パネルごとに読みたい桁が違う。エントリー判定の
+    # カーソルと同じにして、2つの窓を見比べても形が揃うようにする。
+    #   値段・出来高 … 桁区切りあり、小数なし   例) 69,468
+    #   前日比IV     … 符号付きの小数2桁        例) -1.84
+    Y_LABEL_FORMATS: dict = {
+        "candle": "{:,.0f}",
+        "volume": "{:,.0f}",
+        "otm_strike_iv": "{:+.2f}",
+    }
+
+    @classmethod
+    def _format_y(cls, plot_name: str, value: float) -> str:
+        """カーソルのY値を読める形にする（既定は str() で生の float だった）。"""
+        try:
+            return cls.Y_LABEL_FORMATS.get(plot_name, "{:,.2f}").format(value)
+        except (TypeError, ValueError):
+            return str(value)
+
     def _update_label(self) -> None:
         """"""
         if not self._enabled:
@@ -511,7 +533,7 @@ class ChartCursor(QtCore.QObject):
 
         for plot_name, label in self._y_labels.items():
             if plot_name == self._plot_name:
-                label.setText(str(self._y))
+                label.setText(self._format_y(plot_name, self._y))
                 label.show()
                 label.setPos(right_x, self._y)
             else:
