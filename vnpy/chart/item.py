@@ -4,6 +4,7 @@ import pyqtgraph as pg      # type: ignore
 
 from vnpy.trader.ui import QtCore, QtGui, QtWidgets
 from vnpy.trader.object import BarData
+from vnpy.trader.utility import jpx_session_key
 
 from .base import BLACK_COLOR, UP_COLOR, DOWN_COLOR, YELLOW_COLOR, GREY_COLOR, ORANGE_COLOR, MAGENTA_COLOR, PEN_WIDTH, \
     BAR_WIDTH, IV_RANGE_WIDTH, WHITE_COLOR
@@ -313,32 +314,31 @@ class CandleItem(ChartItem):
         candle_picture: QtGui.QPicture = QtGui.QPicture()
         painter: QtGui.QPainter = QtGui.QPainter(candle_picture)
 
-        # Draw vertical lines at market day open (08:45) and night open (17:00)
-        # first, so the candle/reference lines render on top of them.
-        bar_time = bar.datetime.strftime("%H:%M")
+        # セッションの変わり目（日中 08:45 / 夜間 17:00 の開始）に縦線。
+        # ローソクより先に引いて、足が上に乗るようにする。
+        #
+        # 線は足の中心ではなく、1本前との境目（ix - 0.5）に引く。中心だと
+        # ローソクに重なって、その足が新しいセッションなのか最後の足なのかが
+        # 読めない。境目なら「線の右が新しいセッション」とそのまま読める。
+        # エントリー判定の先物チャートと、基準入れ替わりの線も同じ位置。
+        #
+        # どの足が1本目かは jpx_session_key で見る。「08:45 以降の足」では
+        # 30分足の 08:30（08:45 を含む足）が外れて、線が 09:00 の手前に
+        # ずれる。
+        boundary: float = ix - 0.5
         prev_bar: BarData | None = self._manager.get_bar(ix - 1) if ix > 0 else None
-        if prev_bar:
-            prev_time = prev_bar.datetime.strftime("%H:%M")
-            # First bar at or after 08:45
-            if bar_time >= "08:45" and (prev_time < "08:45" or prev_bar.datetime.date() != bar.datetime.date()):
-                painter.setPen(self._market_time_pen)
-                painter.drawLine(
-                    QtCore.QPointF(ix, -999999),
-                    QtCore.QPointF(ix, 999999)
-                )
-            # First bar at or after 17:00
-            if bar_time >= "17:00" and prev_time < "17:00":
-                painter.setPen(self._market_time_pen)
-                painter.drawLine(
-                    QtCore.QPointF(ix, -999999),
-                    QtCore.QPointF(ix, 999999)
-                )
-        elif ix == 0 and bar_time >= "08:45":
-            # First bar in the dataset
+        if prev_bar is not None:
+            session_changed: bool = (
+                jpx_session_key(bar.datetime) != jpx_session_key(prev_bar.datetime)
+            )
+        else:
+            # データの先頭。日中の足なら、その手前で立会が始まっている。
+            session_changed = jpx_session_key(bar.datetime)[1]
+        if session_changed:
             painter.setPen(self._market_time_pen)
             painter.drawLine(
-                QtCore.QPointF(ix, -999999),
-                QtCore.QPointF(ix, 999999)
+                QtCore.QPointF(boundary, -999999),
+                QtCore.QPointF(boundary, 999999)
             )
 
         # Draw a vertical line at the first bar of each new ISO week.
@@ -346,8 +346,8 @@ class CandleItem(ChartItem):
             if bar.datetime.isocalendar()[:2] != prev_bar.datetime.isocalendar()[:2]:
                 painter.setPen(self._week_line_pen)
                 painter.drawLine(
-                    QtCore.QPointF(ix, -999999),
-                    QtCore.QPointF(ix, 999999)
+                    QtCore.QPointF(boundary, -999999),
+                    QtCore.QPointF(boundary, 999999)
                 )
 
         # Set painter color. Same convention as the エントリー判定 chart:

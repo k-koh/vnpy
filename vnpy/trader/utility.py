@@ -4,7 +4,7 @@ General utility functions.
 
 import json
 import sys
-from datetime import datetime, time
+from datetime import date as date_type, datetime, time, timedelta
 from pathlib import Path
 from collections.abc import Callable
 from decimal import Decimal
@@ -173,6 +173,35 @@ INTERVAL_WINDOW_MAP: dict[Interval, int] = {
     Interval.MINUTE20: 20,
     Interval.MINUTE30: 30,
 }
+
+
+def jpx_session_key(dt: datetime) -> tuple[date_type, bool]:
+    """その足がどのセッションのものかを表す鍵。(取引日, 日中ならTrue)
+
+    足の時刻は「足が始まる時刻」で、立会の開始時刻（日中 08:45 / 夜間
+    17:00）とは揃わない。30分足の 08:30 は 08:30-09:00 を束ねた足で、その
+    中で日中立会が始まる。2時間足の 16:00 は 16:00-18:00 の足で、その中で
+    夜間立会が始まる。だから「08:45 以降の足」ではなく「08:45 を含む足」を
+    その日中セッションの1本目とする。
+
+    刻みは最大でも4時間（8時間足も 08:00 / 16:00 で切れる）なので、
+      ・08:45 を含む足は必ず 08:00 以降に始まる
+      ・17:00 を含む足は必ず 16:00 以降に始まる
+    つまり 08:00〜16:00 に始まる足が日中、それ以外が夜間。
+
+    夜間は日をまたぐので、取引日は 16:00 以降なら翌日のものとして返す。
+    これで鍵が変わった足＝セッションが切り替わった足になり、夜中の 00:00
+    では変わらない。
+
+    （12時間足だけは 00:00 / 12:00 の2本で、1本の足に引けと夜間開始の
+      両方が入る。どう切っても正しくならないので、そこは割り切る。）
+    """
+    if 8 <= dt.hour < 16:
+        return dt.date(), True
+    trading_date: date_type = (
+        dt.date() + timedelta(days=1) if dt.hour >= 16 else dt.date()
+    )
+    return trading_date, False
 
 
 INTERVAL_HOUR_WINDOW_MAP: dict[Interval, int] = {
