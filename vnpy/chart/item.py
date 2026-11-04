@@ -11,6 +11,48 @@ from .base import BLACK_COLOR, UP_COLOR, DOWN_COLOR, YELLOW_COLOR, GREY_COLOR, O
 from .manager import BarManager
 
 
+# 軸の上に出す札の地色（点数図・エントリー判定の札と同じ暗い色）
+AXIS_TAG_FILL: tuple = (16, 20, 24)
+
+
+def make_axis_tag(
+    vb: pg.ViewBox, color: tuple, fill: tuple = AXIS_TAG_FILL,
+    size: int = 8, anchor: tuple = (0.0, 0.5),
+) -> pg.TextItem:
+    """右の目盛りの上に出す札（TextItem）を作る。
+
+    ViewBox の子にすると描画範囲で切られてしまうので、PlotItem の子にする。
+    σ の字が既定フォントで抜けないよう、フォント名を明示する。
+    """
+    label = pg.TextItem(anchor=anchor, color=color, fill=pg.mkBrush(fill))
+    label.setFont(QtGui.QFont("Arial", size))
+    plot_item = vb.parentItem()
+    if plot_item is not None:
+        label.setParentItem(plot_item)
+    else:
+        vb.addItem(label, ignoreBounds=True)
+    return label
+
+
+def place_axis_tag(label: pg.TextItem, vb: pg.ViewBox, y: float) -> bool:
+    """札を、表示範囲の右端（＝右の目盛りのすぐ外）の高さ y に置く。
+
+    y が表示範囲の外なら隠して False を返す。
+    """
+    (_x0, x1), (y0, y1) = vb.viewRange()
+    if not (y0 <= y <= y1):
+        label.hide()
+        return False
+    plot_item = vb.parentItem()
+    if plot_item is not None and label.parentItem() is plot_item:
+        local = plot_item.mapFromScene(vb.mapViewToScene(QtCore.QPointF(x1, y)))
+        label.setPos(local.x() + 3, local.y())
+    else:
+        label.setPos(x1, y)
+    label.show()
+    return True
+
+
 class ChartItem(pg.GraphicsObject):
     """"""
 
@@ -562,6 +604,7 @@ class CandleItem(ChartItem):
         if self._last_price_label is None:
             label = pg.TextItem(anchor=(0.0, 0.5), color=BLACK_COLOR)
             label.setFont(QtGui.QFont("Arial", 10))
+            label.setZValue(10)     # σの札より手前
             if plot_item is not None:
                 label.setParentItem(plot_item)
             else:
@@ -648,24 +691,21 @@ class CandleItem(ChartItem):
             else:
                 break
 
+        # 札は右の目盛りの上に、価格だけを出す（点数図と同じ）。現在値の札が
+        # 前に来るよう、こちらは奥に置く。
         while len(self._sigma_labels) < len(entries):
-            lbl = pg.TextItem(anchor=(0.0, 0.5))
-            # Explicit family: the default/empty-family font lacks the Greek
-            # σ glyph and silently drops it (label showed "+0.5", not "+0.5σ").
-            lbl.setFont(QtGui.QFont("Arial", 8))
-            vb.addItem(lbl, ignoreBounds=True)
+            lbl = make_axis_tag(vb, WHITE_COLOR)
+            lbl.setZValue(5)
             self._sigma_labels.append(lbl)
 
         for i, lbl in enumerate(self._sigma_labels):
             if i >= len(entries):
                 lbl.hide()
                 continue
-            text, price, color = entries[i]
+            _text, price, color = entries[i]
             lbl.setColor(color)
-            # Append the futures price at that σ level (like トレンドライン labels).
-            lbl.setText(f"{text}  {price:,.0f}")
-            lbl.setPos(last_ix + 0.6, price)
-            lbl.show()
+            lbl.setText(f"{price:,.0f}")
+            place_axis_tag(lbl, vb, price)
 
         self._update_now_sigma_label(vb, last_ix, base, daily_iv)
 
@@ -694,17 +734,17 @@ class CandleItem(ChartItem):
         sigma: float = (close - base) / (base * daily_iv)
 
         if self._now_sigma_label is None:
-            # anchor (0.0, 1.0): 左下が基準 → 文字は現在値の線の「上」に出る。
-            lbl = pg.TextItem(anchor=(0.0, 1.0))
-            lbl.setFont(QtGui.QFont("Arial", 8))
-            vb.addItem(lbl, ignoreBounds=True)
+            # 右の目盛りの上、現在値の札のすぐ上に出す。anchor (0.0, 1.0):
+            # 左下が基準なので、文字は置いた位置より上に出る。
+            lbl = make_axis_tag(vb, WHITE_COLOR, anchor=(0.0, 1.0))
+            lbl.setZValue(9)
             self._now_sigma_label = lbl
 
         label = self._now_sigma_label
         label.setColor(UP_COLOR if sigma >= 0 else DOWN_COLOR)
         label.setText(f"{sigma:+.2f}σ")
-        label.setPos(last_ix + 0.6, close)
-        label.show()
+        if place_axis_tag(label, vb, close) and label.parentItem() is vb.parentItem():
+            label.moveBy(0, -9)     # 現在値の札（高さ約18px）の上へ
 
     def boundingRect(self) -> QtCore.QRectF:
         """"""
