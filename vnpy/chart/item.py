@@ -34,6 +34,31 @@ def make_axis_tag(
     return label
 
 
+# σの段（0.5σ刻み）。エントリー判定・点数図と同じ。
+SIGMA_STEPS: tuple[float, ...] = (0.5, 1.0, 1.5, 2.0, 2.5, 3.0)
+
+
+def make_sigma_pen(color: tuple, alpha: float, style) -> QtGui.QPen:
+    """σ線のペン（エントリー判定と同じ見た目: 細い 1px の破線/点線、少し透ける）。"""
+    qcolor = QtGui.QColor(*color)
+    qcolor.setAlphaF(alpha)
+    pen: QtGui.QPen = pg.mkPen(color=qcolor, width=1)
+    pen.setStyle(style)
+    pen.setCosmetic(True)
+    return pen
+
+
+def draw_step_level(
+    painter: QtGui.QPainter, ix: int, y: float, prev_y: "float | None"
+) -> None:
+    """足 ix の段の高さ y を、足の幅いっぱい（ix±0.5）に引く。1本前の高さ
+    prev_y があれば境目で縦につなぐ（matplotlib の steps-mid と同じ形）。
+    エントリー判定の σ線と同じく、足ごとの切れ目が無い1本の階段線になる。"""
+    if prev_y is not None and prev_y != y:
+        painter.drawLine(QtCore.QPointF(ix - 0.5, prev_y), QtCore.QPointF(ix - 0.5, y))
+    painter.drawLine(QtCore.QPointF(ix - 0.5, y), QtCore.QPointF(ix + 0.5, y))
+
+
 def place_axis_tag(label: pg.TextItem, vb: pg.ViewBox, y: float) -> bool:
     """札を、表示範囲の右端（＝右の目盛りのすぐ外）の高さ y に置く。
 
@@ -272,6 +297,18 @@ class CandleItem(ChartItem):
             color=DOWN_COLOR, width=PEN_WIDTH
         )
 
+        # σ線のペン（エントリー判定の先物チャートと同じ: 0σ 黄の点線、
+        # 上 赤・下 水色の破線、1px）。
+        self._sigma_base_pen: QtGui.QPen = make_sigma_pen(
+            YELLOW_COLOR, 0.9, QtCore.Qt.PenStyle.DotLine
+        )
+        self._sigma_up_pen: QtGui.QPen = make_sigma_pen(
+            UP_COLOR, 0.8, QtCore.Qt.PenStyle.DashLine
+        )
+        self._sigma_down_pen: QtGui.QPen = make_sigma_pen(
+            DOWN_COLOR, 0.8, QtCore.Qt.PenStyle.DashLine
+        )
+
         # Reusable pool of σ-level labels (±0.5σ, ±1.0σ …) drawn at the right
         # edge next to the latest bar's ATM-IV band lines.
         self._sigma_labels: list[pg.TextItem] = []
@@ -313,42 +350,6 @@ class CandleItem(ChartItem):
             daily_iv = 0
         self._atm_iv_daily[ix] = daily_iv
         return daily_iv
-
-    def _get_drawn_iv_bounds(self, ix: int) -> tuple[float, float] | None:
-        """
-        Return (lower_price, upper_price) for the outermost IV-band lines actually
-        drawn for bar at ix, or None when no IV bands are drawn.
-
-        Mirrors the multiplier ladder in _draw_bar_picture: a 0.5x band is always
-        drawn, and the next 0.5x step is drawn each time close_price breaks
-        through the current step (up to 3.0x).
-        """
-        bar = self._manager.get_bar(ix)
-        if not bar:
-            return None
-        daily_iv = self._get_atm_iv_daily(ix)
-        if daily_iv <= 0:
-            return None
-
-        base_price = bar.pre_close if bar.pre_close > 0 else bar.open_price
-
-        upper_mult: float = 0.5
-        for mult in (0.5, 1.0, 1.5, 2.0, 2.5):
-            if bar.close_price > base_price * (1 + daily_iv * mult):
-                upper_mult = mult + 0.5
-            else:
-                break
-
-        lower_mult: float = 0.5
-        for mult in (0.5, 1.0, 1.5, 2.0, 2.5):
-            if bar.close_price < base_price * (1 - daily_iv * mult):
-                lower_mult = mult + 0.5
-            else:
-                break
-
-        upper_price = base_price * (1 + daily_iv * upper_mult)
-        lower_price = base_price * (1 - daily_iv * lower_mult)
-        return lower_price, upper_price
 
     def _draw_bar_picture(self, ix: int, bar: BarData) -> QtGui.QPicture:
         """"""
@@ -427,126 +428,33 @@ class CandleItem(ChartItem):
             )
             painter.drawRect(rect)
 
-        # Draw ATM IV daily lines
+        # σ線（エントリー判定と同じ見た目）: 0σ＝前日終値は黄の点線、±σの段は
+        # 上が赤・下が水色の破線。足ごとに切らず、同じセッション（同じ前日
+        # 終値）の間は階段状につなぐ。セッションが変わる足では線を切る。
         daily_iv = self._get_atm_iv_daily(ix)
         if daily_iv > 0:
             base_price = bar.pre_close if bar.pre_close > 0 else bar.open_price
-            # upper_price = base_price * (1 + daily_iv)
-            # lower_price = base_price * (1 - daily_iv)
-            #
-            # painter.setPen(self._upper_line_pen)
-            # painter.drawLine(
-            #     QtCore.QPointF(ix - BAR_WIDTH, upper_price),
-            #     QtCore.QPointF(ix + BAR_WIDTH, upper_price)
-            # )
-            #
-            # painter.setPen(self._lower_line_pen)
-            # painter.drawLine(
-            #     QtCore.QPointF(ix - BAR_WIDTH, lower_price),
-            #     QtCore.QPointF(ix + BAR_WIDTH, lower_price)
-            # )
-            #
-            painter.setPen(self._base_line_pen)
-            painter.drawLine(
-                QtCore.QPointF(ix - IV_RANGE_WIDTH, base_price),
-                QtCore.QPointF(ix + IV_RANGE_WIDTH, base_price)
-            )
+            prev_daily: float = self._get_atm_iv_daily(ix - 1) if prev_bar else 0.0
+            prev_base: float | None = None
+            if prev_bar is not None and prev_daily > 0:
+                pb = prev_bar.pre_close if prev_bar.pre_close > 0 else prev_bar.open_price
+                if pb == base_price:
+                    prev_base = pb
 
-            upper_price = base_price * (1 + daily_iv * 0.5)
-            lower_price = base_price * (1 - daily_iv * 0.5)
+            painter.setPen(self._sigma_base_pen)
+            draw_step_level(painter, ix, base_price, prev_base)
 
-            painter.setPen(self._upper_line_pen)
-            painter.drawLine(
-                QtCore.QPointF(ix - IV_RANGE_WIDTH, upper_price),
-                QtCore.QPointF(ix + IV_RANGE_WIDTH, upper_price)
-            )
-
-            painter.setPen(self._lower_line_pen)
-            painter.drawLine(
-                QtCore.QPointF(ix - BAR_WIDTH, lower_price),
-                QtCore.QPointF(ix + BAR_WIDTH, lower_price)
-            )
-
-            if bar.close_price > upper_price:
-                painter.setPen(self._upper_line_pen)
-                upper_price = base_price * (1 + daily_iv)
-                painter.drawLine(
-                    QtCore.QPointF(ix - IV_RANGE_WIDTH, upper_price),
-                    QtCore.QPointF(ix + IV_RANGE_WIDTH, upper_price)
+            # σの段は全部引く。軸は広げないので、表示範囲の外の段は切られる。
+            for mult in SIGMA_STEPS:
+                painter.setPen(self._sigma_up_pen)
+                draw_step_level(
+                    painter, ix, base_price * (1 + daily_iv * mult),
+                    None if prev_base is None else prev_base * (1 + prev_daily * mult),
                 )
-            elif bar.close_price < lower_price:
-                painter.setPen(self._lower_line_pen)
-                lower_price = base_price * (1 - daily_iv)
-                painter.drawLine(
-                    QtCore.QPointF(ix - IV_RANGE_WIDTH, lower_price),
-                    QtCore.QPointF(ix + IV_RANGE_WIDTH, lower_price)
-                )
-
-            upper_price = base_price * (1 + daily_iv * 1.0)
-            lower_price = base_price * (1 - daily_iv * 1.0)
-            if bar.close_price > upper_price:
-                painter.setPen(self._upper_line_pen)
-                upper_price = base_price * (1 + daily_iv * 1.5)
-                painter.drawLine(
-                    QtCore.QPointF(ix - IV_RANGE_WIDTH, upper_price),
-                    QtCore.QPointF(ix + IV_RANGE_WIDTH, upper_price)
-                )
-            elif bar.close_price < lower_price:
-                painter.setPen(self._lower_line_pen)
-                lower_price = base_price * (1 - daily_iv * 1.5)
-                painter.drawLine(
-                    QtCore.QPointF(ix - IV_RANGE_WIDTH, lower_price),
-                    QtCore.QPointF(ix + IV_RANGE_WIDTH, lower_price)
-                )
-
-            upper_price = base_price * (1 + daily_iv * 1.5)
-            lower_price = base_price * (1 - daily_iv * 1.5)
-            if bar.close_price > upper_price:
-                painter.setPen(self._upper_line_pen)
-                upper_price = base_price * (1 + daily_iv * 2.0)
-                painter.drawLine(
-                    QtCore.QPointF(ix - IV_RANGE_WIDTH, upper_price),
-                    QtCore.QPointF(ix + IV_RANGE_WIDTH, upper_price)
-                )
-            elif bar.close_price < lower_price:
-                painter.setPen(self._lower_line_pen)
-                lower_price = base_price * (1 - daily_iv * 2.0)
-                painter.drawLine(
-                    QtCore.QPointF(ix - IV_RANGE_WIDTH, lower_price),
-                    QtCore.QPointF(ix + IV_RANGE_WIDTH, lower_price)
-                )
-            upper_price = base_price * (1 + daily_iv * 2.0)
-            lower_price = base_price * (1 - daily_iv * 2.0)
-            if bar.close_price > upper_price:
-                painter.setPen(self._upper_line_pen)
-                upper_price = base_price * (1 + daily_iv * 2.5)
-                painter.drawLine(
-                    QtCore.QPointF(ix - IV_RANGE_WIDTH, upper_price),
-                    QtCore.QPointF(ix + IV_RANGE_WIDTH, upper_price)
-                )
-            elif bar.close_price < lower_price:
-                painter.setPen(self._lower_line_pen)
-                lower_price = base_price * (1 - daily_iv * 2.5)
-                painter.drawLine(
-                    QtCore.QPointF(ix - IV_RANGE_WIDTH, lower_price),
-                    QtCore.QPointF(ix + IV_RANGE_WIDTH, lower_price)
-                )
-
-            upper_price = base_price * (1 + daily_iv * 2.5)
-            lower_price = base_price * (1 - daily_iv * 2.5)
-            if bar.close_price > upper_price:
-                painter.setPen(self._upper_line_pen)
-                upper_price = base_price * (1 + daily_iv * 3.0)
-                painter.drawLine(
-                    QtCore.QPointF(ix - IV_RANGE_WIDTH, upper_price),
-                    QtCore.QPointF(ix + IV_RANGE_WIDTH, upper_price)
-                )
-            elif bar.close_price < lower_price:
-                painter.setPen(self._lower_line_pen)
-                lower_price = base_price * (1 - daily_iv * 3.0)
-                painter.drawLine(
-                    QtCore.QPointF(ix - IV_RANGE_WIDTH, lower_price),
-                    QtCore.QPointF(ix + IV_RANGE_WIDTH, lower_price)
+                painter.setPen(self._sigma_down_pen)
+                draw_step_level(
+                    painter, ix, base_price * (1 - daily_iv * mult),
+                    None if prev_base is None else prev_base * (1 - prev_daily * mult),
                 )
         # Finish
         painter.end()
@@ -672,24 +580,12 @@ class CandleItem(ChartItem):
         base: float = bar.pre_close if bar.pre_close > 0 else bar.open_price
         close: float = bar.close_price
 
-        # (text, price, color) — mirror the ladder drawn in _draw_bar_picture:
-        # base + ±0.5σ always, then higher levels only on the side the close
-        # has broken through, up to the band just beyond the close.
-        entries: list[tuple[str, float, tuple]] = [
-            ("0σ", base, YELLOW_COLOR),
-            ("+0.5σ", base * (1 + daily_iv * 0.5), UP_COLOR),
-            ("-0.5σ", base * (1 - daily_iv * 0.5), DOWN_COLOR),
-        ]
-        for mult in (1.0, 1.5, 2.0, 2.5, 3.0):
-            if close > base * (1 + daily_iv * (mult - 0.5)):
-                entries.append((f"+{mult:.1f}σ", base * (1 + daily_iv * mult), UP_COLOR))
-            else:
-                break
-        for mult in (1.0, 1.5, 2.0, 2.5, 3.0):
-            if close < base * (1 - daily_iv * (mult - 0.5)):
-                entries.append((f"-{mult:.1f}σ", base * (1 - daily_iv * mult), DOWN_COLOR))
-            else:
-                break
+        # (text, price, color) — 0σ と全部の段。表示範囲の外の札は
+        # place_axis_tag が隠す。
+        entries: list[tuple[str, float, tuple]] = [("0σ", base, YELLOW_COLOR)]
+        for mult in SIGMA_STEPS:
+            entries.append((f"+{mult:.1f}σ", base * (1 + daily_iv * mult), UP_COLOR))
+            entries.append((f"-{mult:.1f}σ", base * (1 - daily_iv * mult), DOWN_COLOR))
 
         # 札は右の目盛りの上に、価格だけを出す（点数図と同じ）。現在値の札が
         # 前に来るよう、こちらは奥に置く。
@@ -742,7 +638,7 @@ class CandleItem(ChartItem):
 
         label = self._now_sigma_label
         label.setColor(UP_COLOR if sigma >= 0 else DOWN_COLOR)
-        label.setText(f"{sigma:+.2f}σ")
+        label.setText(f"{sigma:+.2f}")
         if place_axis_tag(label, vb, close) and label.parentItem() is vb.parentItem():
             label.moveBy(0, -9)     # 現在値の札（高さ約18px）の上へ
 
@@ -773,13 +669,15 @@ class CandleItem(ChartItem):
         if not (self._manager.get_count() and max_ix >= min_ix):
             return min_price, max_price
 
+        # 範囲に入れるのは 0σ（前日終値）だけ。σの段は「入れば見える」だけで、
+        # そのために軸を広げない（エントリー判定と同じ。ローソクが潰れるため）。
         for ix in range(min_ix, max_ix + 1):
-            bounds = self._get_drawn_iv_bounds(ix)
-            if bounds is None:
+            bar = self._manager.get_bar(ix)
+            if bar is None or self._get_atm_iv_daily(ix) <= 0:
                 continue
-            lower_price, upper_price = bounds
-            min_price = min(min_price, lower_price)
-            max_price = max(max_price, upper_price)
+            base_price = bar.pre_close if bar.pre_close > 0 else bar.open_price
+            min_price = min(min_price, base_price)
+            max_price = max(max_price, base_price)
 
         return min_price, max_price
 
