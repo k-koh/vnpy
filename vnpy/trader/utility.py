@@ -204,6 +204,29 @@ def jpx_session_key(dt: datetime) -> tuple[date_type, bool]:
     return trading_date, False
 
 
+def jpx_market_open(now: datetime) -> bool:
+    """JPX の先物が立会中か（日中 08:45〜15:45、夜間 17:00〜翌06:00）。
+
+    休場の時間帯（06:00〜08:45、15:45〜17:00、土曜 06:00〜月曜 08:45）にも
+    スナップショットのティックは届く。それで足を作ると、取引の無い時刻に
+    新しい足が並んでしまうので、その間のティックは足に入れない。
+    引け（15:45 / 06:00）の約定は少し遅れて届くので、1分だけ余裕を見る。
+    """
+    t: time = now.time()
+    weekday: int = now.weekday()
+    if weekday == 5 and t >= time(6, 1):          # 土曜 夜間の引け以降
+        return False
+    if weekday == 6:                              # 日曜
+        return False
+    if weekday == 0 and t < time(8, 45):          # 月曜 日中の寄りまで
+        return False
+    if time(8, 45) <= t < time(15, 46):           # 日中
+        return True
+    if t >= time(17, 0) or t < time(6, 1):        # 夜間
+        return True
+    return False
+
+
 INTERVAL_HOUR_WINDOW_MAP: dict[Interval, int] = {
     Interval.HOUR: 1,
     Interval.HOUR2: 2,
